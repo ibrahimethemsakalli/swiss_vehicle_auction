@@ -1,0 +1,272 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PRIVATE_USER
+  DEALER
+  ADMIN
+}
+
+enum ListingType {
+  AUCTION_7_DAYS
+  FIXED_PRICE_OFFERS
+}
+
+enum VehicleStatus {
+  DRAFT
+  PENDING_VERIFICATION
+  ACTIVE
+  SOLD
+  EXPIRED
+  CANCELLED
+}
+
+enum BidStatus {
+  OFFER_PENDING
+  OFFER_REJECTED
+  OFFER_WITHDRAWN
+  OFFER_EXPIRED
+  ACTIVE
+  OUTBID
+  WON
+  DEFAULTED_PENALIZED
+  RELEASED
+}
+
+enum HoldStatus {
+  PENDING_AUTHORIZATION
+  FAILED
+  CAPTURED_UNEXPECTED
+  AUTHORIZED
+  RELEASE_PENDING
+  RELEASED
+  CAPTURE_PENDING
+  CAPTURED_FEE
+  CAPTURED_COMPENSATION
+  EXPIRED
+}
+
+model User {
+  id                 String         @id @default(uuid())
+  email              String         @unique
+  phone              String         @unique
+  passwordHash       String
+  authVersion        Int            @default(0)
+  isSample           Boolean        @default(false)
+  recoveryCodes      RecoveryCode[]
+  disputes           Dispute[]
+  role               Role           @default(PRIVATE_USER)
+  language           String         @default("de")
+  isIdentityVerified Boolean        @default(false)
+  phoneVerifiedAt    DateTime?
+  suspendedAt        DateTime?
+  swissId            String?        @unique
+  canton             String?
+  companyName        String?
+  handelsregisterNr  String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  vehicles           Vehicle[]
+  bids               Bid[]
+  holds              PaymentHold[]
+}
+
+model Vehicle {
+  id                String        @id @default(uuid())
+  isSample          Boolean       @default(false)
+  userId            String
+  user              User          @relation(fields: [userId], references: [id])
+  stammnummer       String
+  vinChassis        String        @unique
+  firstRegistration DateTime?
+  modelYear         Int?
+  make              String
+  model             String
+  fuelType String?
+  transmission String?
+  bodyType String?
+  drivetrain String?
+  condition String?
+  exteriorColor String?
+  accidentHistory String?
+  warranty String?
+  fuelConsumption Float?
+  electricConsumption Float?
+  co2Emissions Int?
+  rangeKm Int?
+  batteryCapacity Float?
+  seats Int?
+  doors Int?
+  interiorColor String?
+  energyClass String?
+  euroNorm String?
+  equipment String[] @default([])
+  cubicCapacity     Int?
+  powerKw           Int?
+  mileage           Int
+  canton            String
+  mfkDate           DateTime
+  serviceHistory    String
+  tireCondition     String
+  description       String
+  images            String[]
+  listingType       ListingType
+  status            VehicleStatus @default(PENDING_VERIFICATION)
+  isVerifiedPrivate Boolean       @default(false)
+  startPrice        Decimal       @db.Decimal(12, 2)
+  reservePrice      Decimal?      @db.Decimal(12, 2)
+  buyNowPrice       Decimal?      @db.Decimal(12, 2)
+  minimumIncrement  Decimal       @default(100) @db.Decimal(12, 2)
+  currentPrice      Decimal?      @db.Decimal(12, 2)
+  auctionStartAt    DateTime?
+  auctionEndsAt     DateTime?
+  antiSnipingCount  Int           @default(0)
+  version           Int           @default(0)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  bids              Bid[]
+  auctionLogs       AuctionLog[]
+  holds             PaymentHold[]
+  settlement        Settlement?
+
+  @@index([status, canton, auctionEndsAt])
+  @@index([status, make, model])
+}
+
+model Bid {
+  id             String      @id @default(uuid())
+  vehicleId      String
+  vehicle        Vehicle     @relation(fields: [vehicleId], references: [id])
+  userId         String
+  user           User        @relation(fields: [userId], references: [id])
+  amount         Decimal     @db.Decimal(12, 2)
+  holdId         String      @unique
+  hold           PaymentHold @relation(fields: [holdId], references: [id])
+  requestId      String
+  status         BidStatus   @default(ACTIVE)
+  createdAt      DateTime    @default(now())
+  offerExpiresAt DateTime?
+  settlement     Settlement?
+
+  @@unique([userId, requestId])
+  @@index([vehicleId, status])
+}
+
+model Settlement {
+  id                String    @id @default(uuid())
+  vehicleId         String    @unique
+  vehicle           Vehicle   @relation(fields: [vehicleId], references: [id])
+  bidId             String    @unique
+  bid               Bid       @relation(fields: [bidId], references: [id])
+  status            String    @default("AWAITING_CONFIRMATION")
+  outcome           String?
+  sellerConfirmedAt DateTime?
+  defaultReportedAt DateTime?
+  resolvedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  disputes          Dispute[]
+
+  @@index([status, createdAt])
+}
+
+model RecoveryCode {
+  tokenHash String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Dispute {
+  id             String     @id @default(uuid())
+  settlementId   String
+  settlement     Settlement @relation(fields: [settlementId], references: [id])
+  reporterId     String
+  reporter       User       @relation(fields: [reporterId], references: [id])
+  category       String
+  message        String
+  status         String     @default("OPEN")
+  resolution     String?
+  resolutionNote String?
+  reviewedBy     String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([settlementId, status])
+}
+
+model PaymentHold {
+  id                   String        @id @default(uuid())
+  userId               String
+  user                 User          @relation(fields: [userId], references: [id])
+  vehicleId            String
+  vehicle              Vehicle       @relation(fields: [vehicleId], references: [id])
+  gateway              String
+  replacementBidId     String?
+  gatewayTransactionId String?       @unique
+  amount               Decimal       @default(30) @db.Decimal(5, 2)
+  currency             String        @default("CHF")
+  status               HoldStatus    @default(PENDING_AUTHORIZATION)
+  expiresAt            DateTime
+  createdAt            DateTime      @default(now())
+  bid                  Bid?
+  transactions         Transaction[]
+}
+
+model Transaction {
+  id                   String      @id @default(uuid())
+  holdId               String
+  hold                 PaymentHold @relation(fields: [holdId], references: [id])
+  operation            String
+  status               String      @default("PENDING")
+  gatewayTransactionId String?     @unique
+  idempotencyKey       String      @unique
+  createdAt            DateTime    @default(now())
+  attempts             Int         @default(0)
+  nextAttemptAt        DateTime    @default(now())
+  lockedAt             DateTime?
+}
+
+model SmsVerification {
+  userId          String   @id
+  verificationSid String
+  expiresAt       DateTime
+}
+
+model RateLimit {
+  key       String   @id
+  count     Int      @default(1)
+  expiresAt DateTime
+}
+
+model WebhookEvent {
+  id          String    @id
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+model AuctionLog {
+  id               String   @id @default(uuid())
+  vehicleId        String
+  vehicle          Vehicle  @relation(fields: [vehicleId], references: [id])
+  extensionSeconds Int      @default(120)
+  triggeredAt      DateTime @default(now())
+}
+
+model OutboxEvent {
+  id          String    @id @default(uuid())
+  kind        String
+  payload     Json
+  createdAt   DateTime  @default(now())
+  deliveredAt DateTime?
+
+  @@index([deliveredAt, createdAt])
+}
