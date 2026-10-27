@@ -1,6 +1,8 @@
 # AutoVeri.ch
 
-Swiss vehicle auction application built with Next.js 14 App Router, TypeScript, Prisma/PostgreSQL, Tailwind CSS, shadcn-style Radix primitives, i18next and Socket.IO.
+Swiss vehicle auction application built with Next.js 16.4.3 App Router and React 19.3.1, TypeScript, Prisma/PostgreSQL, Tailwind CSS, shadcn-style Radix primitives, i18next and Socket.IO.
+
+Product review, competitor sources and the ordered implementation backlog are tracked in [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md). `/help` explains verification, auction rules, the CHF 30 reservation and settlement limitations in all four UI languages.
 
 ## Local preview
 
@@ -13,6 +15,8 @@ For local records, run `pnpm db:local` in a separate terminal. It initializes pe
 Then run `pnpm db:deploy`, `pnpm db:generate`, and `pnpm dev`. For an existing PostgreSQL server, configure DATABASE_URL in `.env` instead. Do not overwrite a generated `.env` with the example file: add the provider values to it. A configured but unavailable database produces an error, never substitute demo data.
 
 ## Account and provider setup
+
+PM-03 legal preparation is tracked in [LEGAL_READINESS.md](LEGAL_READINESS.md). `/privacy`, `/terms`, `/contact` and `/legal/accept` support all four languages. Business/provider/retention/refund details are intentionally unset, so the documents remain drafts. No live legal release or retroactive acceptance was created. Only restricted local draft development may continue without published acceptance records; production/new commercial actions require a published release and current acceptance. `pnpm test:legal` exercises only the new document/acknowledgement controls against an isolated `_test` database. Publication requires completing/reviewing the profile and all four texts, then `pnpm legal:publish VERSION --reviewed`.
 
 1. Open `/register`, choose private seller or dealer, enter an E.164 Swiss number (`+41…`) and a password of at least 12 characters, at most 72 UTF-8 bytes. Registration cannot assign ADMIN or verification flags. Passwords are hashed with bcrypt. Registration, login and SMS attempts use PostgreSQL rate limits.
 2. Configure `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and `TWILIO_VERIFY_SERVICE_SID` from a Twilio Verify service in `.env`, then restart the application. `/verify` sends and checks SMS through Twilio. The destination always comes from the authenticated account. Codes are never stored. Trial-account destination restrictions still apply. No local universal code or runtime verification bypass is provided.
@@ -38,7 +42,7 @@ Settlement states are `AWAITING_CONFIRMATION`, `DEFAULT_REVIEW`, `CAPTURE_PENDIN
 
 The durable capture worker uses leased jobs, exponential retry and a stable idempotency key per hold. It retrieves Stripe state before capture, sends exactly 3000 centimes and records a capture key in Stripe metadata. If Stripe succeeds but the response or database commit is lost, retries or signed webhooks recover the result without a second charge. Captured amount and metadata must match before recording `CAPTURED_FEE`/`CAPTURED_COMPENSATION`. An unrecognized external capture becomes `CAPTURED_UNEXPECTED` and requires manual investigation. Ambiguous provider/network failures remain pending; they are never represented as a completed sale. Keep the custom server running for closing, capture and release processing.
 
-Compensation capture records funds on the platform's Stripe account; it does **not** transfer them to the seller. Seller payouts require a separate Stripe Connect or accounting workflow. Live capture testing still needs provider credentials. See [Stripe capture API](https://docs.stripe.com/api/payment_intents/capture).
+The user-confirmed policy is that an independently approved buyer-default capture remains with the platform operator as a service fee, without a seller payout. The internal `CAPTURE_COMPENSATION` / `CAPTURED_COMPENSATION` identifiers remain for compatibility; visible terms and status labels describe the retained service fee. This business policy still requires final contractual/accounting review before launch. Live capture testing still needs provider credentials. See [Stripe capture API](https://docs.stripe.com/api/payment_intents/capture).
 
 Relevant provider references: [Stripe manual capture](https://docs.stripe.com/payments/place-a-hold-on-a-payment-method), [Stripe webhooks](https://docs.stripe.com/webhooks), [Twilio Verify](https://www.twilio.com/docs/verify/api/verification), [Stripe allowed payment methods](https://support.stripe.com/questions/fix-the-payment-method-types-error).
 
@@ -57,6 +61,18 @@ Relevant provider references: [Stripe manual capture](https://docs.stripe.com/pa
 The header switches German, French, Italian and English. Preference persists in local storage; numbers, CHF and dates use Swiss locales. All UI copy is in `src/messages/*.json`. Listing descriptions remain in the seller's original language. Shared UI primitives live in `src/components/ui`; `components.json` declares the shadcn aliases.
 
 ## Backend connections
+
+### Owned photo storage (PM-02)
+
+Run `pnpm db:generate` and `pnpm db:deploy` before restarting the server with this update. New uploads create `MediaAsset` records owned by the authenticated verified account. Listing creation atomically claims only that user's ready, unattached uploads younger than 24 hours; external URLs, duplicate paths and previously attached files are rejected. The 12-photo listing limit remains.
+
+Limits: 5 MB input per JPEG/PNG, 5.1 MB bounded multipart body, 40 MP, 12,000px per source edge. Sharp auto-orients, resizes within 4096×4096 without enlargement and re-encodes to sRGB JPEG at quality 85, flattening transparency onto white and discarding metadata (including EXIF/GPS). Source bytes are not retained. The decode/output pipeline has a 10-second timeout and two processing slots per server process. This is not a distributed processing quota.
+
+Per account: 24 pending files / 60 MB and 120 files / 300 MB total, including in-flight reservations (5 MB each). User-row locking prevents parallel quota and attachment races. Pending media is private; only the owner can read an unattached file. Admins may read photos on their review listings. Public vehicle photos remain accessible. Existing referenced uploads are preserved and checked against listing visibility; they cannot be claimed by a new listing without an ownership record. Legacy photos are not retroactively metadata-sanitized by this migration.
+
+The custom server runs the janitor hourly. Unattached ready files become eligible after 24h, interrupted uploads after 1h; failed deletions are retried. Batches are bounded to 100 registered candidates plus 100 unregistered candidates. Cleanup never deletes media referenced by a vehicle, including legacy references. It examines only ordinary UUID-named JPG/PNG files at the upload root, without recursive deletion. `pnpm media:cleanup` reports a dry-run; `pnpm media:cleanup -- --apply` performs deletion. Run it repeatedly to drain a larger backlog. Keep `UPLOAD_DIR` stable and durable; object storage is a separate deployment task.
+
+`pnpm test:media` runs only photo/multipart unit tests and isolated media DB/HTTP tests. It requires an isolated database ending in `_test`, creates temporary upload files under `.local/`, and removes its own fixtures. No bidding, closing, payment or settlement workflows are exercised. Existing general integration fixtures were updated for the new media contract without rerunning those workflows.
 
 - `GET /api/market` and `/api/market/[id]`: public DTOs omit full VIN, reserve prices, passwords, phone numbers and bidder identities. Search accepts validated JSON `filters` and a `page`, applies filters in PostgreSQL and returns 24 vehicles plus `total` and make/model options. The former 200-record cutoff is removed. Price/deadline sorting currently sorts compact matching price records on the server before fetching the page's full records; move this ordering into SQL for very large catalogues. Favorites apply the same filter semantics locally, including closed listings.
 - `GET /api/account`: authenticated, current-user-only dashboard data. `GET /api/holds?vehicleId=...`: current user's unused, valid CHF 30 authorization.
@@ -81,7 +97,7 @@ The frontend exposes these states honestly; disabled controls never simulate a s
 - Automated identity/dealer registry validation, identity evidence intake, email verification and email-delivered recovery. Offline recovery codes and authenticated password changes are implemented.
 - Datatrans/TWINT integration, refunds, chargeback handling and seller compensation payouts. Compensation capture does not transfer funds to the seller.
 - Automated default deadlines and external financial resolution of disputes. Fixed-price offers and participant dispute intake/review are implemented; evidence review and refunds still require operator action.
-- Production OCR job isolation, request/pixel/CPU limits, trusted-proxy IP throttling, upload quotas, object storage, multi-instance Socket.IO adapter/outbox fan-out, PostGIS search, notifications and PWA support. Current registration has a conservative global limit of 30/hour, login 10/email/15 minutes, SMS 1/account/minute and 5/account/day (100 globally/day); tune these with operational monitoring before a public launch.
+- Production OCR job isolation and OCR pixel/CPU limits, trusted-proxy IP throttling, object storage, multi-instance Socket.IO adapter/outbox fan-out, PostGIS search, notifications and PWA support. Photo ownership, upload quotas and bounded metadata-stripping image processing are implemented in PM-02 above. Current registration has a conservative global limit of 30/hour, login 10/email/15 minutes, SMS 1/account/minute and 5/account/day (100 globally/day); tune these with operational monitoring before a public launch.
 
 ## Checks
 
@@ -254,3 +270,39 @@ Native browser validation bubbles ignored the selected UI language. Shared Input
 Form selects and textareas in listing, review, vehicle specs, offers, settlements and disputes now use shared localized validation controls. Existing constraints, names, change handlers, classes and refs are retained. Inline errors preserve existing aria-describedby references, mark invalid fields and focus the first invalid control. Corrections clear errors; changing locale translates an existing error.
 Only the changed controls were exercised at 360x780 and 390x780 in DE/FR/IT/EN using /dev/field-audit (development only, no API calls). Controlled and uncontrolled required selects/textareas and native minimum-length validation passed in all eight combinations with no horizontal overflow or clipped messages. Corrected values cleared errors while preserving helper descriptions; the valid fixture form could submit locally. TypeScript and locale key/interpolation parity passed. No production workflow, prior input test, gallery or payment test was repeated. Evidence: artifacts/mobile-select-textarea-audit.json and artifacts/mobile-select-textarea-360-fr.png.
 
+# PM-04 — hesap güvenliği
+
+E-posta doğrulaması, e-posta ile şifre kurtarma, admin için parola + tek kullanımlık e-posta kodu ve +423 telefon biçimi desteği eklendi. `pnpm dev:local-security` dış API kullanmadan yerel mesaj kutusunu etkinleştirir; `pnpm dev:local-payments` aynı desteği içerir. Mesajlar `.local/messages` içinde, uygulama adımları `/verify`, `/reset-password` ve `/login` ekranlarında bulunur. Gerçek gönderim sağlayıcısı henüz bağlı değildir. Ayrıntılar: [ACCOUNT_SECURITY.md](ACCOUNT_SECURITY.md).
+
+Hedefli test: `pnpm test:security` — izole PostgreSQL’de 9 güvenlik test grubu; TypeScript ve dört dil katalog eşliği geçti. Yeni giriş/doğrulama/kurtarma alanları 360 ve 390 px’de dört dilde kontrol edildi. Önceden tamamlanan ihale/ödeme/galeri iş akışları tekrar çalıştırılmadı.
+
+
+## PM-05 — sağlayıcı sınırları
+
+Yerel ödeme modundan gerçek Stripe’a sessiz geçiş ve yerel SMS kimliklerinin gerçek sağlayıcıya gönderilmesi engellendi. Kesin ödeme reddi FAILED olarak saklanır. SMS taşıma ve webhook imza sınırları sahte yanıtlarla kontrol edildi. `pnpm test:providers` yalnızca yeni adaptör sınırlarını ve izole DB durum testini çalıştırır; eski işlem akışlarını tekrarlamaz. Gerçek API hesabı/işletme kararı bekleyenler ve TWINT ön provizyon kısıtı [PROVIDER_READINESS.md](PROVIDER_READINESS.md) içinde ayrılmıştır.
+
+## PM-06 — işletim
+
+`/api/health/live` HTTP canlılığını, `/api/health/ready` DB ve custom-server worker hazırlığını gösterir. Yetkili admin `/api/admin/operations` üzerinden worker son çalışma/hata ve kuyruk yaşlarını okuyabilir. `pnpm backup:create --quiesced`, `backup:verify FOLDER` ve `backup:restore FOLDER --quiesced` yerel yedek/boş hedef restore araçlarıdır. Kurulum, durdurma şartı, test kanıtı ve harici işler [OPERATIONS.md](OPERATIONS.md) içinde açıklanmıştır. `pnpm test:operations` yalnızca PM-06 testlerini çalıştırır. Eski custom server kaynak güncellemesi için yeniden başlatılmalıdır; bu görevde mevcut kullanıcı sunucusu değiştirilmedi.
+
+## PM-07 — CI ve bağımlılıklar
+
+GitHub Actions PR/main için typecheck, ağ erişimi kapalı birim testleri, izole build, ephemeral PostgreSQL migration/şema kontrolü ve high/critical audit kapısını içerir. Node 24.19.0, pnpm 11.25.0 ve Action commit’leri sabittir. Komutlar: `pnpm ci:lint`, `pnpm ci:typecheck`, `pnpm ci:test`, `pnpm ci:build`, `pnpm ci:db`. Gerçek sağlayıcı secret’ı kullanılmaz.
+
+NextAuth/PostCSS güvenlik düzeltmeleri uygulandı; audit 37’den 28’e indi. Next 14 ve diğer kalan bildirimler nedeniyle güvenlik job’u şu anda başarısız olacaktır. Ana sürüm geçişleri, hedefli test kanıtı ve GitHub’da henüz çalıştırılmamış bölümler [CI_READINESS.md](CI_READINESS.md) içinde açıklanmıştır. Bu görevde eski iş akışları yeniden test edilmedi ve GitHub’a push yapılmadı.
+
+## PM-07A — Next.js 16
+
+Next.js 16.4.3 / React 19.3.1 yükseltildi; async route/query parametreleri ve JSX/ref tipleri uyarlandı. Webpack açıkça seçilir, CI typecheck öncesi route tipleri üretilir. Hedefli framework testleri ve build geçti. Audit artık 0 critical / 3 high; Next/React bildirimi yok. Kalan Zod/Prisma zinciri PM-07B/C kapsamındadır ve high audit kapısı başarısız kalır. [NEXT16_MIGRATION.md](NEXT16_MIGRATION.md) kapsamı, kanıtı ve restart gereğini açıklar. Eski çalışan sunucu otomatik yükselmez; ayrı 127.0.0.2:3142 önizleme yalnızca sentetik veridir.
+
+## PM-07B — Zod 4
+
+Zod 4.6.7 yükseltmesi, sözlük/UUID/e-posta uyumu ve ortak parola/tarih şemaları hazır. Sunucu doğrulama yanıtı eski hata kodlarını korur; girdi değerlerini içermeyen en çok 10 alan mesajı DE/FR/IT/EN gösterilir. `pnpm test:validation` yalnızca 11 yeni doğrulama kontrolünü çalıştırır. Audit 0 critical / 2 high; Zod bildirimi kalktı, Prisma config zinciri PM-07C olarak kaldı. [ZOD4_MIGRATION.md](ZOD4_MIGRATION.md) kapsamı ve hedefli kanıtı açıklar. Tamamlanan kullanıcı akışları ve gerçek API testleri tekrarlanmadı.
+
+## PM-07C — Prisma güvenliği (tarihsel durum)
+
+Prisma CLI/client 6.19.3, effect 3.21.0 ve yalnızca Prisma config için deepmerge-ts 8.0.2 sabitlemesi uygulandı. Güncel audit 0 bildirim; önceki PM-07A/B sayıları tarihsel kayıttır. `pnpm test:prisma` generate/config, migration/drift ve temel DB işlemlerini yeni geçici yerel veritabanında doğrular. Hedefli test, typecheck ve frozen install geçti; gerçek API ve tamamlanan iş akışları tekrar çalıştırılmadı. [PRISMA_SECURITY.md](PRISMA_SECURITY.md) geçici override, şema eşleştirmesi ve Prisma 6'nın 19 Kasım 2026 destek sonunu açıklar. Uygulamanın çalışan süreci yeni istemciyi kullanmak için kontrollü yeniden başlatılmalıdır.
+
+## Prisma 7 (güncel durum)
+
+Prisma CLI/client/adapter-pg 7.10.1 ve pg 8.23.1 kullanılıyor. İstemci `pnpm db:generate` ile `src/generated/prisma` altında üretilir; `prisma.config.ts` CLI bağlantısını yönetir. Geçici deepmerge override kaldırıldı, audit 0 bildirim. Hedefli migration/bağlantı/veri testleri ve typecheck geçti; kullanıcı akışları tekrarlanmadı. Havuz ayarları, kurulum ve kapsam: [PRISMA7_MIGRATION.md](PRISMA7_MIGRATION.md). Mevcut süreç yeni sürüm için yeniden başlatılmalı; production build yeniden üretilmelidir.

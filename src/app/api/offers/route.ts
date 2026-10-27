@@ -48,7 +48,7 @@ export async function PATCH(request: Request) {
     assertSameOrigin(request);
     const userId = await requireUser();
     const input = z
-      .object({ id: z.string().uuid(), action: z.enum(['accept', 'reject', 'withdraw']) })
+      .object({ id: z.uuid(), action: z.enum(['accept', 'reject', 'withdraw']) })
       .strict()
       .parse(await request.json());
     await decideOffer(userId, input.id, input.action);

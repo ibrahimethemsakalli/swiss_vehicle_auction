@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '../generated/prisma/client';
 import { specOptions, specNumbers, equipmentOptions } from './vehicle-specs';
 import { cantons, type Filters } from './market-types';
 const bound = z.number().finite().min(0).max(Number.MAX_SAFE_INTEGER);
@@ -23,7 +23,7 @@ export const filterInput = z
     yearFrom: z.number().int().min(1900).max(2100).optional(),
     yearTo: z.number().int().min(1900).max(2100).optional(),
     specs: z
-      .record(z.string())
+      .record(z.string(), z.string())
       .refine((value) =>
         Object.entries(value).every(
           ([k, v]) =>
@@ -33,7 +33,7 @@ export const filterInput = z
       )
       .optional(),
     ranges: z
-      .record(range)
+      .record(z.string(), range)
       .refine((value) =>
         Object.keys(value).every(
           (k) => Object.keys(specNumbers).includes(k) || ['powerKw', 'cubicCapacity'].includes(k),

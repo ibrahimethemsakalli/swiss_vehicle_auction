@@ -1,47 +1,44 @@
 import { db } from './db';
 import { rateLimit } from './rate-limit';
+import { localMessagesEnabled, issueChallenge, consumeChallenge } from './account-challenges';
+import { twilioTransport } from './twilio-transport';
 export interface SmsGateway {
   send(phone: string, language: string): Promise<string>;
   check(sid: string, code: string): Promise<boolean>;
 }
-async function twilio(path: string, body: URLSearchParams) {
-  const {
-    TWILIO_ACCOUNT_SID: account,
-    TWILIO_AUTH_TOKEN: token,
-    TWILIO_VERIFY_SERVICE_SID: service,
-  } = process.env;
-  if (!account || !token || !service) throw new Error('PROVIDER_UNAVAILABLE');
-  const response = await fetch(
-    `https://verify.twilio.com/v2/Services/${encodeURIComponent(service)}/${path}`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Basic ${Buffer.from(`${account}:${token}`).toString('base64')}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body,
-      signal: AbortSignal.timeout(10000),
-      cache: 'no-store',
-    },
-  );
-  if (!response.ok) throw new Error('VERIFICATION_FAILED');
-  return response.json();
+function realSms() {
+  return twilioTransport({
+    account: process.env.TWILIO_ACCOUNT_SID,
+    token: process.env.TWILIO_AUTH_TOKEN,
+    service: process.env.TWILIO_VERIFY_SERVICE_SID,
+  });
 }
 export const smsGateway: SmsGateway = {
   async send(phone, language) {
-    const result = await twilio(
-      'Verifications',
-      new URLSearchParams({ To: phone, Channel: 'sms', Locale: language }),
-    );
-    if (!/^VE[0-9a-f]{32}$/i.test(result.sid)) throw new Error('VERIFICATION_FAILED');
-    return result.sid;
+    if (process.env.LOCAL_TEST_MESSAGES === 'true' && !localMessagesEnabled())
+      throw new Error('PROVIDER_UNAVAILABLE');
+    if (localMessagesEnabled()) {
+      const user = await db.user.findUniqueOrThrow({ where: { phone } });
+      return issueChallenge(user.id, 'SMS', phone);
+    }
+    return realSms().send(phone, language);
   },
   async check(sid, code) {
-    const result = await twilio(
-      'VerificationCheck',
-      new URLSearchParams({ VerificationSid: sid, Code: code }),
-    );
-    return result.sid === sid && result.status === 'approved';
+    if (process.env.LOCAL_TEST_MESSAGES === 'true' && !localMessagesEnabled())
+      throw new Error('PROVIDER_UNAVAILABLE');
+    if (localMessagesEnabled()) {
+      const rows = await db.$queryRaw<
+        { userId: string }[]
+      >`SELECT "userId" FROM "AccountChallenge" WHERE id=${sid} AND purpose='SMS'`;
+      if (!rows[0]) return false;
+      try {
+        await consumeChallenge(rows[0].userId, 'SMS', code);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    return realSms().check(sid, code);
   },
 };
 export async function sendSms(userId: string, gateway: SmsGateway = smsGateway) {

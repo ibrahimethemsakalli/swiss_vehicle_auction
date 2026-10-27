@@ -5,11 +5,15 @@ import { signOut, useSession } from 'next-auth/react';
 import { useLocale } from './providers';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
+import { EmailSecurity } from './email-security';
+import { ValidationErrors } from './validation-errors';
+import { readValidation, type ValidationIssue } from '../lib/validation-public';
 export function Security({ reset = false }: { reset?: boolean }) {
   const { t } = useLocale();
   const { status } = useSession();
   const [codes, setCodes] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [validation, setValidation] = useState<ValidationIssue[]>([]);
   const [result, setResult] = useState<'securitySuccess' | 'securityFailed' | null>(null);
   if (!reset && status === 'unauthenticated')
     return (
@@ -23,6 +27,7 @@ export function Security({ reset = false }: { reset?: boolean }) {
     const values = Object.fromEntries(new FormData(form));
     setBusy(true);
     setResult(null);
+    setValidation([]);
     setCodes([]);
     try {
       const response = await fetch('/api/security', {
@@ -30,7 +35,10 @@ export function Security({ reset = false }: { reset?: boolean }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, ...values }),
       });
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        setValidation(readValidation(await response.json().catch(() => ({}))));
+        throw new Error();
+      }
       const data = await response.json();
       if (data.codes) {
         setCodes(data.codes);
@@ -48,10 +56,15 @@ export function Security({ reset = false }: { reset?: boolean }) {
   }
   return (
     <div className="login-page">
+      <EmailSecurity reset={reset} />
       <section className="login-card panel">
         <h1>{t(reset ? 'resetPassword' : 'accountSecurity')}</h1>
         <p>{t('recoveryHelp')}</p>
-        <form onSubmit={(e) => void submit(e, reset ? 'reset' : 'change')}>
+        <ValidationErrors issues={validation} />
+        <form
+          onInput={() => setValidation([])}
+          onSubmit={(e) => void submit(e, reset ? 'reset' : 'change')}
+        >
           {reset ? (
             <>
               <label className="form-label">

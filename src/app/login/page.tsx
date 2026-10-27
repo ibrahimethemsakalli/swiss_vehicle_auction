@@ -13,6 +13,7 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const [ready, setReady] = useState(false);
+  const [sent, setSent] = useState(false);
   useEffect(() => setReady(true), []);
   return (
     <div className="login-page">
@@ -31,6 +32,7 @@ export default function Login() {
               const result = await signIn('credentials', {
                 email: form.get('email'),
                 password: form.get('password'),
+                code: form.get('code'),
                 redirect: false,
               });
               if (result?.ok) {
@@ -64,6 +66,48 @@ export default function Login() {
           {error && (
             <p className="notice" role="alert">
               {t('loginFailed')}
+            </p>
+          )}
+          <label className="form-label">
+            {t('adminSecondCode')}
+            <Input
+              name="code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="[0-9]{6}"
+              maxLength={6}
+            />
+          </label>
+          <Button
+            type="button"
+            disabled={busy}
+            onClick={async (e) => {
+              const data = new FormData(e.currentTarget.closest('form')!);
+              setBusy(true);
+              try {
+                const response = await fetch('/api/account-verification', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    action: 'requestAdmin',
+                    email: data.get('email'),
+                    password: data.get('password'),
+                  }),
+                });
+                setSent(response.ok);
+                setError(!response.ok);
+              } catch {
+                setError(true);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {t('sendAdminCode')}
+          </Button>
+          {sent && (
+            <p role="status" className="notice">
+              {t('messageRequested')}
             </p>
           )}
           <Button type="submit" variant="green" className="w-full" disabled={busy || !ready}>

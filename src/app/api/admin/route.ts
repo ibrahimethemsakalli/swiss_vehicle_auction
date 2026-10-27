@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { pastDateInput } from '../../../lib/validation-inputs';
+import { publicValidation } from '../../../lib/validation-errors';
 import { db } from '../../../lib/db';
 import { requireUser } from '../../../lib/http';
 import { assertSameOrigin } from '../../../lib/mutation';
@@ -71,15 +73,15 @@ export async function GET() {
 }
 const reviewInput = z
   .object({
-    id: z.string().uuid(),
+    id: z.uuid(),
     action: z.enum(['approve', 'reject']),
     note: z.string().trim().min(5).max(2000),
     make: z.string().trim().min(1).max(80),
     model: z.string().trim().min(1).max(100),
     stammnummer: z.string().regex(/^\d{9}$/),
     vinChassis: z.string().regex(/^[A-HJ-NPR-Z0-9]{17}$/),
-    firstRegistration: z.coerce.date().refine((d) => d <= new Date()),
-    mfkDate: z.coerce.date().refine((d) => d <= new Date()),
+    firstRegistration: pastDateInput,
+    mfkDate: pastDateInput,
   })
   .strict();
 export async function POST(request: Request) {
@@ -146,7 +148,10 @@ export async function POST(request: Request) {
     return Response.json({ ok: true });
   } catch (error) {
     return Response.json(
-      { error: 'REVIEW_REJECTED' },
+      {
+        error: 'REVIEW_REJECTED',
+        ...(error instanceof z.ZodError ? { validation: publicValidation(error) } : {}),
+      },
       {
         status:
           error instanceof Error && error.message === 'UNAUTHORIZED'

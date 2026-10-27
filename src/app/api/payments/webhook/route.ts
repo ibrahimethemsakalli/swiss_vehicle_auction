@@ -1,6 +1,8 @@
 import { stripeClient, handlePaymentEvent } from '../../../../lib/payments';
 export const runtime = 'nodejs';
 export async function POST(request: Request) {
+  if (process.env.LOCAL_TEST_PAYMENTS === 'true')
+    return new Response('Unavailable in local payment mode', { status: 503 });
   if (!process.env.STRIPE_WEBHOOK_SECRET) return new Response('Unavailable', { status: 503 });
   let event;
   try {

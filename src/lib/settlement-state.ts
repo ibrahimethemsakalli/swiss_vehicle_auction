@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '../generated/prisma/client';
 
 export async function queueRelease(tx: Prisma.TransactionClient, holdId: string) {
   const hold = await tx.paymentHold.findUniqueOrThrow({ where: { id: holdId } });

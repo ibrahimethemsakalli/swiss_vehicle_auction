@@ -3,6 +3,9 @@ import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import assert from 'node:assert/strict';
 import Stripe from 'stripe';
+import sharp from 'sharp';
+import { unlink } from 'node:fs/promises';
+import path from 'node:path';
 
 async function main() {
   const url = new URL(process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? '');
@@ -21,16 +24,20 @@ async function main() {
   );
   if (migrated.status !== 0) throw new Error('Test database migrations failed');
   const { db } = await import('../src/lib/db');
+  const { legalTestFixture } = await import('./legal-test-fixture');
   const { register } = await import('../src/lib/registration');
   const { sendSms, checkSms } = await import('../src/lib/sms');
   const { approveIdentity } = await import('../src/lib/identity');
   const { createVehicle } = await import('../src/lib/vehicles');
+  const { uploadPhoto } = await import('../src/lib/media');
+  const { uploadDirectory } = await import('../src/lib/uploads');
   const { createHold, syncHold, processReleases, reconcileHolds, handlePaymentEvent } =
     await import('../src/lib/payments');
   const { placeBid } = await import('../src/lib/bidding');
   type Intent = import('../src/lib/payments').Intent;
   type Gateway = import('../src/lib/payments').PaymentGateway;
   const run = randomUUID();
+  const legalFixture = await legalTestFixture();
   const users: string[] = [];
   const vehicles: string[] = [];
   const intents = new Map<string, Intent>();
@@ -88,6 +95,7 @@ async function main() {
       password: 'Long-test-password-123!',
       phone,
       language: 'en',
+      legal: legalFixture.input('en'),
       role: 'PRIVATE_USER',
     });
     users.push(user.id);
@@ -138,6 +146,12 @@ async function main() {
     }
     await assert.rejects(() => approveIdentity(buyer, admin, `test-evidence:${run}`), /FORBIDDEN/);
     pass('SMS cooldown, incorrect code and replay protection; separate admin identity approval');
+    const ownedPhoto = await uploadPhoto(
+      seller,
+      await sharp({ create: { width: 2, height: 2, channels: 3, background: '#ffffff' } })
+        .png()
+        .toBuffer(),
+    );
     const input = {
       stammnummer: '123456789',
       vinChassis:
@@ -155,7 +169,7 @@ async function main() {
       serviceHistory: 'FULL',
       tireCondition: 'Good',
       description: 'Integration fixture',
-      images: ['https://example.test/car.jpg'],
+      images: [ownedPhoto.url],
       listingType: 'AUCTION_7_DAYS',
       startPrice: '1000',
     };
@@ -326,6 +340,12 @@ async function main() {
       `${count} integration scenarios passed using real PostgreSQL and injected SMS/payment simulators.`,
     );
   } finally {
+    const media = await db.mediaAsset.findMany({
+      where: { ownerId: { in: users } },
+      select: { filename: true },
+    });
+    for (const photo of media)
+      await unlink(path.join(uploadDirectory(), photo.filename)).catch(() => {});
     await db.settlement.deleteMany({ where: { vehicleId: { in: vehicles } } });
     // Only this run's fixtures are removed, never application data or a database reset.
     await db.transaction.deleteMany({ where: { hold: { userId: { in: users } } } });
@@ -334,7 +354,9 @@ async function main() {
     await db.auctionLog.deleteMany({ where: { vehicleId: { in: vehicles } } });
     await db.vehicle.deleteMany({ where: { id: { in: vehicles } } });
     await db.smsVerification.deleteMany({ where: { userId: { in: users } } });
+    await db.legalAcceptance.deleteMany({ where: { userId: { in: users } } });
     await db.user.deleteMany({ where: { id: { in: users } } });
+    await legalFixture.cleanup();
     await db.$disconnect();
   }
 }

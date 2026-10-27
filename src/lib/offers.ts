@@ -1,8 +1,9 @@
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../generated/prisma/client';
 import { db } from './db';
 import { bidInput } from './bidding';
 import { syncHold, stripeGateway, type PaymentGateway } from './payments';
 import { queueRelease } from './settlement-state';
+import { requireCurrentLegal } from './legal';
 export async function makeOffer(
   userId: string,
   raw: unknown,
@@ -12,7 +13,10 @@ export async function makeOffer(
   const previous = await db.bid.findUnique({
     where: { userId_requestId: { userId, requestId: input.requestId } },
   });
-  if (!previous) await syncHold(input.holdId, userId, gateway);
+  if (!previous) {
+    await requireCurrentLegal(userId);
+    await syncHold(input.holdId, userId, gateway);
+  }
   return db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "Vehicle" WHERE id = ${input.vehicleId} FOR UPDATE`;
     const prior = await tx.bid.findUnique({
@@ -29,8 +33,15 @@ export async function makeOffer(
       return { id: prior.id };
     }
     const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
+    const legal = await requireCurrentLegal(userId, tx);
     const vehicle = await tx.vehicle.findUniqueOrThrow({ where: { id: input.vehicleId } });
-    if (user.suspendedAt || user.isSample || !user.phoneVerifiedAt || !user.isIdentityVerified)
+    if (
+      user.suspendedAt ||
+      user.isSample ||
+      !user.phoneVerifiedAt ||
+      !user.emailVerifiedAt ||
+      !user.isIdentityVerified
+    )
       throw new Error('VERIFICATION_REQUIRED');
     if (
       vehicle.isSample ||
@@ -63,6 +74,7 @@ export async function makeOffer(
     const offer = await tx.bid.create({
       data: {
         ...input,
+        legalAcceptanceId: legal?.id,
         userId,
         amount,
         status: 'OFFER_PENDING',
@@ -113,7 +125,12 @@ export async function decideOffer(
       )
         throw new Error('OFFER_EXPIRED');
       const buyer = await tx.user.findUniqueOrThrow({ where: { id: offer.userId } });
-      if (buyer.suspendedAt || !buyer.phoneVerifiedAt || !buyer.isIdentityVerified)
+      if (
+        buyer.suspendedAt ||
+        !buyer.phoneVerifiedAt ||
+        !buyer.emailVerifiedAt ||
+        !buyer.isIdentityVerified
+      )
         throw new Error('VERIFICATION_REQUIRED');
       await tx.bid.update({ where: { id: bidId }, data: { status: 'WON' } });
       await tx.settlement.create({ data: { vehicleId: offer.vehicleId, bidId } });

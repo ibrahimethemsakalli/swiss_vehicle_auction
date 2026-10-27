@@ -1,0 +1,54 @@
+{
+  "reviewedAt": "2026-10-27",
+  "nextVersion": "16.4.3",
+  "reactVersion": "19.3.1",
+  "lockfileSha256": "c57f8f626df4a939a8028e7ab663753902e7c09e4590374f0d2172918e60431e",
+  "before": {
+    "info": 0,
+    "low": 2,
+    "moderate": 11,
+    "high": 12,
+    "critical": 3
+  },
+  "after": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 3,
+    "critical": 0
+  },
+  "remainingAdvisories": [
+    {
+      "package": "effect",
+      "severity": "high",
+      "title": "Effect `AsyncLocalStorage` context lost/contaminated inside Effect fibers under concurrent load with RPC",
+      "patchedVersions": ">=3.20.0",
+      "url": "https://github.com/advisories/GHSA-38f7-945m-qr2g",
+      "dependencyPaths": [
+        ".>@prisma/client>prisma>@prisma/config>effect",
+        ".>prisma>@prisma/config>effect"
+      ]
+    },
+    {
+      "package": "deepmerge-ts",
+      "severity": "high",
+      "title": "DeepmergeTS has stack exhaustion when merging recursive object graphs",
+      "patchedVersions": ">=8.0.0",
+      "url": "https://github.com/advisories/GHSA-ggr8-5vv4-36mx",
+      "dependencyPaths": [
+        ".>@prisma/client>prisma>@prisma/config>deepmerge-ts",
+        ".>prisma>@prisma/config>deepmerge-ts"
+      ]
+    },
+    {
+      "package": "zod",
+      "severity": "high",
+      "title": "Zod can exhaust memory while validating oversized constrained collections",
+      "patchedVersions": ">=4.6.6",
+      "url": "https://github.com/advisories/GHSA-mrhx-c7xc-m3w5",
+      "dependencyPaths": [
+        ".>zod"
+      ]
+    }
+  ]
+}

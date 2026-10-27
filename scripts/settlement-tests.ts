@@ -81,7 +81,7 @@ async function main() {
         phone: `+41${id}`,
         passwordHash: 'fixture-disabled',
         role,
-        phoneVerifiedAt: new Date(),
+        phoneVerifiedAt: new Date(), emailVerifiedAt: new Date(),
         isIdentityVerified: true,
       },
     });

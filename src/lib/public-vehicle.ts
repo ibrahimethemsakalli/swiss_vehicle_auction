@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '../generated/prisma/client';
 import type { VehicleView } from './market-types';
 export const publicVehicleInclude = {
   user: { select: { role: true, isIdentityVerified: true } },

@@ -69,7 +69,7 @@ export async function POST(request: Request) {
     const userId = await requireUser();
     const input = z
       .object({
-        id: z.string().uuid(),
+        id: z.uuid(),
         action: z.enum([
           'confirm',
           'report_default',

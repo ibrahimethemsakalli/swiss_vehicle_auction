@@ -2,6 +2,8 @@ import Stripe from 'stripe';
 import { db } from './db';
 import { rateLimit } from './rate-limit';
 import { recordCapture } from './settlement-state';
+import { requireCurrentLegal } from './legal';
+import { paymentRoute } from './provider-isolation';
 import {
   localGateway,
   localPaymentsEnabled,
@@ -10,6 +12,7 @@ import {
 } from './local-payment';
 
 export function stripeClient() {
+  if (process.env.LOCAL_TEST_PAYMENTS === 'true') throw new Error('PROVIDER_UNAVAILABLE');
   const key = process.env.STRIPE_SECRET_KEY;
   if (
     !key ||
@@ -36,7 +39,7 @@ export interface PaymentGateway {
   release(id: string, key: string): Promise<Intent>;
   capture(id: string, key: string): Promise<Intent>;
 }
-function normalize(intent: Stripe.PaymentIntent): Intent {
+export function normalizeStripeIntent(intent: Stripe.PaymentIntent): Intent {
   const charge = typeof intent.latest_charge === 'object' ? intent.latest_charge : null;
   const captureBefore = charge?.payment_method_details?.card?.capture_before;
   return {
@@ -60,13 +63,15 @@ function normalize(intent: Stripe.PaymentIntent): Intent {
           ? 'released'
           : intent.status === 'succeeded'
             ? 'captured'
-            : 'pending',
+            : intent.status === 'requires_payment_method' && intent.last_payment_error
+              ? 'failed'
+              : 'pending',
     expiresAt: captureBefore ? new Date(captureBefore * 1000) : undefined,
   };
 }
 const realStripeGateway: PaymentGateway = {
   async capture(id, key) {
-    return normalize(
+    return normalizeStripeIntent(
       await stripeClient().paymentIntents.capture(
         id,
         { amount_to_capture: 3000, metadata: { captureKey: key }, expand: ['latest_charge'] },
@@ -75,7 +80,7 @@ const realStripeGateway: PaymentGateway = {
     );
   },
   async create(hold) {
-    return normalize(
+    return normalizeStripeIntent(
       await stripeClient().paymentIntents.create(
         {
           amount: 3000,
@@ -90,24 +95,33 @@ const realStripeGateway: PaymentGateway = {
     );
   },
   async retrieve(id) {
-    return normalize(
+    return normalizeStripeIntent(
       await stripeClient().paymentIntents.retrieve(id, { expand: ['latest_charge'] }),
     );
   },
   async release(id, key) {
     const current = await this.retrieve(id);
     if (current.state === 'released') return current;
-    return normalize(await stripeClient().paymentIntents.cancel(id, {}, { idempotencyKey: key }));
+    return normalizeStripeIntent(
+      await stripeClient().paymentIntents.cancel(id, {}, { idempotencyKey: key }),
+    );
   },
 };
 // Never send local fixture IDs to Stripe, even if the mode has subsequently been disabled.
+function selectedGateway(id?: string, storedGateway?: string) {
+  return paymentRoute(
+    { requested: process.env.LOCAL_TEST_PAYMENTS === 'true', enabled: localPaymentsEnabled() },
+    id,
+    storedGateway,
+  ) === 'local'
+    ? localGateway
+    : realStripeGateway;
+}
 export const stripeGateway: PaymentGateway = {
-  create: (hold) => (localPaymentsEnabled() ? localGateway : realStripeGateway).create(hold),
-  retrieve: (id) => (id.startsWith('local_') ? localGateway : realStripeGateway).retrieve(id),
-  release: (id, key) =>
-    (id.startsWith('local_') ? localGateway : realStripeGateway).release(id, key),
-  capture: (id, key) =>
-    (id.startsWith('local_') ? localGateway : realStripeGateway).capture(id, key),
+  create: (hold) => selectedGateway(undefined, (hold as { gateway?: string }).gateway).create(hold),
+  retrieve: (id) => selectedGateway(id).retrieve(id),
+  release: (id, key) => selectedGateway(id).release(id, key),
+  capture: (id, key) => selectedGateway(id).capture(id, key),
 };
 export async function createHold(
   userId: string,
@@ -122,9 +136,15 @@ export async function createHold(
   }
   await rateLimit(`hold:${userId}`, 20, 3600);
   const hold = await db.$transaction(async (tx) => {
+    const legal = replacementBidId ? null : await requireCurrentLegal(userId, tx);
     await tx.$queryRaw`SELECT id FROM "Vehicle" WHERE id = ${vehicleId} FOR UPDATE`;
     const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
-    if (user.suspendedAt || !user.phoneVerifiedAt || !user.isIdentityVerified)
+    if (
+      user.suspendedAt ||
+      !user.phoneVerifiedAt ||
+      !user.emailVerifiedAt ||
+      !user.isIdentityVerified
+    )
       throw new Error('VERIFICATION_REQUIRED');
     const vehicle = await tx.vehicle.findUniqueOrThrow({ where: { id: vehicleId } });
     if (vehicle.isSample || user.isSample) throw new Error('SAMPLE_READ_ONLY');
@@ -173,6 +193,7 @@ export async function createHold(
           userId,
           vehicleId,
           replacementBidId,
+          legalAcceptanceId: legal?.id,
           gateway: local ? 'local-test' : 'stripe',
           expiresAt: new Date(Date.now() + 15 * 60000),
         },
@@ -235,7 +256,8 @@ export async function syncHold(
         await recordCapture(tx, holdId, intent.captureKey);
         return tx.paymentHold.findUniqueOrThrow({ where: { id: holdId } });
       } else if (['PENDING_AUTHORIZATION', 'AUTHORIZED'].includes(status)) {
-        if (intent.state === 'authorized' && intent.expiresAt && intent.expiresAt > new Date())
+        if (intent.state === 'failed') status = 'FAILED';
+        else if (intent.state === 'authorized' && intent.expiresAt && intent.expiresAt > new Date())
           status = 'AUTHORIZED';
         else if (intent.state === 'authorized' || hold.expiresAt <= new Date()) status = 'EXPIRED';
         else status = 'PENDING_AUTHORIZATION';

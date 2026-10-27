@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useLocale, type Locale } from './providers';
 import { Button } from './ui/button';
 import { LocalTestBanner } from './local-test-banner';
+import { LegalBanner } from './legal-pages';
 export function Shell({ children }: { children: React.ReactNode }) {
   const { t, locale, setLocale } = useLocale();
   const path = usePathname();
@@ -15,6 +16,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const links = [
     ['/', t('discover')],
     ['/dashboard', t('garage')],
+    ['/help', t('help')],
     ...(status === 'authenticated' ? [['/security', t('accountSecurity')]] : []),
   ];
   return (
@@ -106,6 +108,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         )}
       </header>
       <LocalTestBanner />
+      <LegalBanner />
       <main id="main">{children}</main>
       <footer className="site-footer">
         <div className="container">
@@ -117,6 +120,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
               <p>{t('footerText')}</p>
             </div>
             <div className="footer-links">
+              <Link href="/privacy">{t('privacyTitle')}</Link>
+              <Link href="/terms">{t('termsTitle')}</Link>
+              <Link href="/contact">{t('contactTitle')}</Link>
+              <Link href="/help">
+                {t('help')}
+                <ArrowUpRight size={14} />
+              </Link>
               <Link href="/photo-credits">
                 {t('photoCredits')}
                 <ArrowUpRight size={14} />

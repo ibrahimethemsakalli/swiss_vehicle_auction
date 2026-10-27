@@ -2,14 +2,14 @@ import { z } from 'zod';
 import { db } from './db';
 export const openDisputeInput = z
   .object({
-    settlementId: z.string().uuid(),
+    settlementId: z.uuid(),
     category: z.enum(['NO_HANDOVER', 'VEHICLE_ISSUE', 'PAYMENT_ISSUE', 'OTHER']),
     message: z.string().trim().min(20).max(2000),
   })
   .strict();
 export const reviewDisputeInput = z
   .object({
-    id: z.string().uuid(),
+    id: z.uuid(),
     resolution: z.enum(['NO_ACTION', 'MANUAL_RESOLUTION', 'REFUND_REQUIRED']),
     note: z.string().trim().min(20).max(2000),
   })

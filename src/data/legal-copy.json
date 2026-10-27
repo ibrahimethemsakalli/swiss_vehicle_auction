@@ -1,0 +1,242 @@
+{
+  "en": {
+    "privacy": {
+      "title": "Privacy notice",
+      "sections": [
+        [
+          "Controller and contact",
+          "The operator identity, postal address and privacy contact are listed below. These details and the final service-provider locations are not yet decided. This draft must be completed before a public launch."
+        ],
+        [
+          "Data and purposes",
+          "The application processes account and phone details, password hashes, language, verification status, listings and photos, bids, reservations, sales, disputes and decision records. Document-version acknowledgements link an account to the exact text and language shown. These data support account security and operation of the marketplace."
+        ],
+        [
+          "Recipients and external services",
+          "The code includes Stripe card payments and Twilio SMS adapters; live providers and processing countries remain undecided. Card entry uses Stripe Elements when enabled. The home page loads an image from Unsplash, which receives browser connection data. No advertising or analytics SDK was identified in the reviewed application code; hosting logs and final tools must be documented before publication."
+        ],
+        [
+          "Cookies and browser storage",
+          "NextAuth uses cookies for sessions and request security. The selected language and saved vehicle IDs are stored in local browser storage. These browser preferences can be cleared in the browser. They are separate from consent to marketing; this application does not collect a marketing opt-in here."
+        ],
+        [
+          "Storage, photos and retention",
+          "New photo uploads are re-encoded without EXIF/GPS metadata. Unattached ready uploads become eligible for cleanup after 24 hours; interrupted uploads after one hour. Linked listing photos are retained. General account, transaction, audit and backup retention and international-transfer arrangements are still to be defined; no automatic deletion period is promised."
+        ],
+        [
+          "Requests and corrections",
+          "The final privacy contact will receive requests for access, correction, deletion or other applicable data rights and may need to verify the requester. Retention needed for unresolved transactions or other applicable obligations must be assessed. The application does not yet offer automatic account erasure or data export. Do not send identity documents or card details through public listing or dispute text."
+        ]
+      ]
+    },
+    "terms": {
+      "title": "Terms of use",
+      "sections": [
+        [
+          "Operator and status",
+          "These draft terms describe the proposed AutoVeri platform service. The operator and contact details below are not yet final. The platform facilitates listings, offers and a CHF 30 service fee; the vehicle purchase price is paid separately between buyer and seller."
+        ],
+        [
+          "Eligibility and truthful listings",
+          "The intended service is for persons aged 18 or over resident in Switzerland or Liechtenstein. Eligibility is self-declared, not an automatic age or residence check. Phone registration accepts +41 and +423; real SMS delivery must be validated before launch. Sellers must have authority to offer the vehicle and describe it accurately. Phone/identity and listing review do not constitute proof of ownership, a mechanical inspection or a vehicle warranty."
+        ],
+        [
+          "Auctions and offers",
+          "Approval starts a seven-day auction. An accepted bid during the final three minutes extends its current deadline by two minutes. An eligible highest bid must meet any hidden reserve. Fixed-price listings use offers that the seller accepts or rejects. Review amounts and vehicle information before a binding submission; the existing confirmation controls describe that action."
+        ],
+        [
+          "CHF 30 reservation and service fee",
+          "A confirmed CHF 30 reservation is required before a new bid or offer. It is not yet a charge, and its provider-set validity is not guaranteed to last seven days. After completed vehicle payment and handover, the seller confirms the sale and the winning buyer’s reservation may be captured as the platform service fee. For an independently reviewed and approved buyer default, CHF 30 remains with the platform operator as a service fee; it is not paid to the seller as compensation."
+        ],
+        [
+          "Release, disputes and refunds",
+          "Outbid or eligible cancelled reservations are queued for release; the bank determines availability. A default report alone does not authorize a charge. Buyer or seller may open a sale dispute; open cases pause pending captures. A refund-required decision does not execute a refund. Support, refund handling and response periods remain to be finalized, so this draft grants no invented refund deadline or automatic refund promise."
+        ],
+        [
+          "Versions and changes",
+          "Acceptance records identify the document versions, language and time. A future published version requires a fresh acknowledgement for new listing, bidding and offer actions. Existing records are not rewritten. Access to an existing dispute, release, renewal or account-security process is not conditioned on accepting new commercial terms. Mandatory rights and the final governing-law/dispute provisions require review before publication."
+        ]
+      ]
+    }
+  },
+  "de": {
+    "privacy": {
+      "title": "Datenschutzerklärung",
+      "sections": [
+        [
+          "Verantwortlicher und Kontakt",
+          "Betreiber, Postadresse und Datenschutzkontakt stehen unten. Diese Angaben und die endgültigen Standorte der Dienstleister sind noch nicht festgelegt. Dieser Entwurf muss vor dem öffentlichen Start vervollständigt werden."
+        ],
+        [
+          "Daten und Zwecke",
+          "Verarbeitet werden Konto- und Telefondaten, Passwort-Hashes, Sprache, Prüfstatus, Inserate und Fotos, Gebote, Reservierungen, Verkäufe, Beanstandungen und Entscheidungen. Versionsnachweise verbinden ein Konto mit dem tatsächlich angezeigten Text und seiner Sprache. Die Daten dienen der Kontosicherheit und dem Betrieb des Marktplatzes."
+        ],
+        [
+          "Empfänger und externe Dienste",
+          "Der Code enthält Adapter für Stripe-Kartenzahlungen und Twilio-SMS; Live-Anbieter und Verarbeitungsländer sind noch offen. Bei Aktivierung nutzt die Karteneingabe Stripe Elements. Die Startseite lädt ein Unsplash-Bild und übermittelt dabei Verbindungsdaten des Browsers. Im geprüften Anwendungscode wurde kein Werbe- oder Analyse-SDK gefunden; Hosting-Protokolle und endgültige Werkzeuge müssen vor Veröffentlichung dokumentiert werden."
+        ],
+        [
+          "Cookies und Browserspeicher",
+          "NextAuth verwendet Cookies für Sitzungen und Anfragesicherheit. Sprache und gespeicherte Fahrzeug-IDs liegen im lokalen Browserspeicher und können dort gelöscht werden. Diese Einstellungen sind von einer Werbeeinwilligung getrennt; hier wird keine Werbeeinwilligung eingeholt."
+        ],
+        [
+          "Speicherung, Fotos und Aufbewahrung",
+          "Neue Foto-Uploads werden ohne EXIF/GPS-Metadaten neu kodiert. Nicht zugeordnete fertige Uploads sind nach 24 Stunden, abgebrochene nach einer Stunde zur Bereinigung vorgesehen. Zugeordnete Inseratfotos bleiben erhalten. Fristen für Konto-, Transaktions-, Prüf- und Sicherungsdaten sowie internationale Übermittlungen sind noch festzulegen; eine automatische Löschfrist wird nicht zugesagt."
+        ],
+        [
+          "Anfragen und Berichtigungen",
+          "Der endgültige Datenschutzkontakt nimmt Anfragen zu Auskunft, Berichtigung, Löschung und weiteren anwendbaren Rechten entgegen und kann die Identität prüfen müssen. Erforderliche Aufbewahrung bei offenen Transaktionen oder anderen Pflichten wird gesondert beurteilt. Eine automatische Kontolöschung oder ein Datenexport ist noch nicht verfügbar. Keine Ausweis- oder Kartendaten in öffentliche Inserat- oder Falltexte eingeben."
+        ]
+      ]
+    },
+    "terms": {
+      "title": "Nutzungsbedingungen",
+      "sections": [
+        [
+          "Betreiber und Status",
+          "Dieser Entwurf beschreibt den vorgesehenen AutoVeri-Plattformdienst. Betreiber und Kontaktdaten sind noch nicht endgültig festgelegt. Die Plattform vermittelt Inserate und Angebote und erhebt eine Servicegebühr von CHF 30; den Fahrzeugpreis bezahlen Käufer und Verkäufer separat."
+        ],
+        [
+          "Teilnahme und richtige Angaben",
+          "Der Dienst ist für Personen ab 18 Jahren mit Wohnsitz in der Schweiz oder Liechtenstein vorgesehen. Die Teilnahmeberechtigung wird selbst erklärt; dies ist keine automatische Alters- oder Wohnsitzprüfung. Die Telefonregistrierung akzeptiert +41 und +423; echte SMS-Zustellung muss vor dem Start geprüft werden. Verkäufer müssen zum Angebot berechtigt sein und das Fahrzeug richtig beschreiben. Telefon-, Identitäts- und Inseratprüfung sind weder Eigentumsnachweis noch technische Untersuchung oder Fahrzeuggarantie."
+        ],
+        [
+          "Auktionen und Angebote",
+          "Mit der Freigabe beginnt eine siebentägige Auktion. Ein angenommenes Gebot in den letzten drei Minuten verlängert das aktuelle Ende um zwei Minuten. Ein gültiges Höchstgebot muss einen allfälligen verdeckten Mindestpreis erreichen. Festpreisinserate verwenden Angebote, die der Verkäufer annimmt oder ablehnt. Prüfen Sie Betrag und Fahrzeug vor einer verbindlichen Abgabe; die vorhandenen Bestätigungselemente erläutern diese Aktion."
+        ],
+        [
+          "Reservierung und Servicegebühr von CHF 30",
+          "Vor einem neuen Gebot oder Angebot ist eine bestätigte Reservierung von CHF 30 nötig. Sie ist noch keine Belastung; sieben Tage Gültigkeit sind nicht garantiert. Nach Fahrzeugzahlung und Übergabe bestätigt der Verkäufer den Abschluss; die Reservierung des gewinnenden Käufers kann als Plattform-Servicegebühr eingezogen werden. Bei unabhängig geprüftem und bestätigtem Käuferausfall bleiben CHF 30 als Servicegebühr beim Plattformbetreiber; sie werden nicht als Entschädigung an den Verkäufer ausgezahlt."
+        ],
+        [
+          "Freigabe, Beanstandungen und Erstattungen",
+          "Überbotene oder entsprechend abgebrochene Reservierungen werden zur Freigabe vorgemerkt; die Bank bestimmt die Verfügbarkeit. Eine Ausfallmeldung allein löst keinen Einzug aus. Käufer oder Verkäufer können einen Fall eröffnen; offene Fälle pausieren ausstehende Einzüge. Ein Erstattungsentscheid führt keine Rückzahlung aus. Support, Erstattungsprozess und Antwortfristen sind noch festzulegen; dieser Entwurf verspricht keine erfundene Erstattungsfrist oder automatische Rückzahlung."
+        ],
+        [
+          "Versionen und Änderungen",
+          "Nachweise enthalten Dokumentversion, Sprache und Zeitpunkt. Eine neue veröffentlichte Fassung erfordert eine erneute Bestätigung für neue Inserate, Gebote und Angebote. Bestehende Nachweise werden nicht überschrieben. Zugang zu bestehenden Beanstandungen, Freigaben, Erneuerungen und Kontosicherheit hängt nicht von neuen Geschäftsbedingungen ab. Zwingende Rechte sowie endgültige Rechtswahl und Streitregelung müssen vor Veröffentlichung geprüft werden."
+        ]
+      ]
+    }
+  },
+  "fr": {
+    "privacy": {
+      "title": "Déclaration de confidentialité",
+      "sections": [
+        [
+          "Responsable et contact",
+          "L’identité de l’exploitant, son adresse et le contact de confidentialité figurent ci-dessous. Ces informations et les pays des prestataires restent à définir. Ce projet doit être complété avant une ouverture publique."
+        ],
+        [
+          "Données et finalités",
+          "L’application traite les données de compte et de téléphone, les mots de passe hachés, la langue, les vérifications, annonces et photos, offres, réservations, ventes, réclamations et décisions. Les accusés de version relient le compte au texte exact et à sa langue. Ces données servent à la sécurité des comptes et au fonctionnement de la place de marché."
+        ],
+        [
+          "Destinataires et services externes",
+          "Le code comprend des adaptateurs Stripe et Twilio ; les prestataires réels et pays de traitement restent indéterminés. Si activée, la saisie de carte utilise Stripe Elements. La page d’accueil charge une image Unsplash et lui transmet des données de connexion du navigateur. Aucun SDK publicitaire ou analytique n’a été identifié dans le code examiné ; les journaux d’hébergement et outils définitifs doivent être documentés avant publication."
+        ],
+        [
+          "Cookies et stockage du navigateur",
+          "NextAuth utilise des cookies de session et de sécurité des requêtes. La langue et les identifiants des véhicules favoris sont stockés localement dans le navigateur et peuvent y être effacés. Ces préférences sont distinctes d’un consentement publicitaire ; aucun accord marketing n’est demandé ici."
+        ],
+        [
+          "Photos et durées de conservation",
+          "Les nouvelles photos sont réencodées sans métadonnées EXIF/GPS. Les envois terminés non associés sont éligibles au nettoyage après 24 heures, les envois interrompus après une heure. Les photos liées aux annonces restent conservées. La conservation des comptes, transactions, preuves et sauvegardes, ainsi que les transferts internationaux, restent à définir ; aucune suppression automatique à date fixe n’est promise."
+        ],
+        [
+          "Demandes et rectifications",
+          "Le futur contact de confidentialité recevra les demandes d’accès, correction, suppression et autres droits applicables, avec vérification d’identité si nécessaire. Les obligations de conservation liées aux opérations en cours ou à d’autres exigences doivent être évaluées. L’effacement automatique du compte et l’export ne sont pas encore disponibles. Ne saisissez pas de données de documents d’identité ou de carte dans les annonces ou réclamations publiques."
+        ]
+      ]
+    },
+    "terms": {
+      "title": "Conditions d’utilisation",
+      "sections": [
+        [
+          "Exploitant et statut",
+          "Ce projet décrit le service AutoVeri envisagé. L’exploitant et ses coordonnées ne sont pas encore définitifs. La plateforme facilite annonces et offres et prélève des frais de service de CHF 30 ; le prix du véhicule est payé séparément entre acheteur et vendeur."
+        ],
+        [
+          "Participation et exactitude des annonces",
+          "Le service est destiné aux personnes majeures de 18 ans ou plus résidant en Suisse ou au Liechtenstein. L’éligibilité est déclarative, sans vérification automatique de l’âge ou du domicile. L’inscription téléphonique accepte +41 et +423 ; la livraison réelle des SMS doit être validée avant le lancement. Les vendeurs doivent être autorisés à proposer le véhicule et le décrire fidèlement. Les vérifications ne sont ni une preuve de propriété, ni une expertise mécanique, ni une garantie du véhicule."
+        ],
+        [
+          "Enchères et propositions",
+          "L’approbation lance une enchère de sept jours. Une offre acceptée dans les trois dernières minutes prolonge l’échéance en cours de deux minutes. Une offre gagnante admissible doit atteindre tout prix de réserve caché. Pour un prix fixe, le vendeur accepte ou refuse les propositions. Vérifiez montant et véhicule avant une soumission ferme ; les confirmations existantes décrivent cette action."
+        ],
+        [
+          "Réservation et frais de service de CHF 30",
+          "Une réservation confirmée de CHF 30 précède toute nouvelle offre. Elle n’est pas encore un débit ; une validité de sept jours n’est pas garantie. Après paiement et remise du véhicule, le vendeur confirme la vente ; la réservation de l’acheteur gagnant peut être encaissée comme frais de service. En cas de défaillance examinée et approuvée par un administrateur indépendant, CHF 30 restent acquis à l’exploitant comme frais de service ; ils ne sont pas versés au vendeur comme indemnité."
+        ],
+        [
+          "Libération, réclamations et remboursements",
+          "Les réservations dépassées ou annulées admissibles sont mises en attente de libération ; la banque fixe la disponibilité. Un signalement seul ne déclenche aucun encaissement. Acheteur ou vendeur peut ouvrir un dossier ; un dossier ouvert suspend les encaissements en attente. Une décision de remboursement ne l’exécute pas. Assistance, remboursements et délais de réponse restent à définir ; ce projet ne promet aucun délai inventé ni remboursement automatique."
+        ],
+        [
+          "Versions et modifications",
+          "Les preuves identifient la version, la langue et l’heure. Une nouvelle version publiée exige une nouvelle confirmation pour les nouvelles annonces et offres. Les anciennes preuves ne sont pas réécrites. Les dossiers existants, libérations, renouvellements et fonctions de sécurité restent accessibles sans accepter de nouvelles conditions commerciales. Les droits impératifs et les clauses définitives de droit applicable et de litige exigent un examen avant publication."
+        ]
+      ]
+    }
+  },
+  "it": {
+    "privacy": {
+      "title": "Informativa sulla privacy",
+      "sections": [
+        [
+          "Titolare e contatti",
+          "Identità del gestore, indirizzo e contatto privacy sono indicati sotto. Questi dati e i paesi dei fornitori non sono ancora definiti. Questa bozza va completata prima dell’apertura al pubblico."
+        ],
+        [
+          "Dati e finalità",
+          "L’applicazione tratta dati di account e telefono, hash delle password, lingua, verifiche, annunci e foto, offerte, prenotazioni, vendite, contestazioni e decisioni. Le ricevute di versione collegano l’account al testo esatto e alla lingua visualizzata. I dati servono alla sicurezza degli account e al funzionamento del mercato."
+        ],
+        [
+          "Destinatari e servizi esterni",
+          "Il codice include adattatori Stripe e Twilio; fornitori effettivi e paesi di trattamento restano da definire. Se attiva, l’immissione della carta usa Stripe Elements. La home carica un’immagine Unsplash e trasmette dati di connessione del browser. Nel codice esaminato non è stato individuato un SDK pubblicitario o analitico; log di hosting e strumenti definitivi vanno documentati prima della pubblicazione."
+        ],
+        [
+          "Cookie e memoria del browser",
+          "NextAuth usa cookie per sessioni e sicurezza delle richieste. Lingua e identificativi dei veicoli preferiti sono salvati localmente nel browser e possono essere cancellati lì. Queste preferenze sono separate dal consenso pubblicitario; qui non viene richiesto un consenso marketing."
+        ],
+        [
+          "Foto e conservazione",
+          "Le nuove foto sono ricodificate senza metadati EXIF/GPS. Gli invii completati non associati possono essere ripuliti dopo 24 ore, quelli interrotti dopo un’ora. Le foto collegate agli annunci restano conservate. Tempi di conservazione di account, transazioni, prove e backup e trasferimenti internazionali sono ancora da definire; non viene promessa una cancellazione automatica a scadenza fissa."
+        ],
+        [
+          "Richieste e rettifiche",
+          "Il futuro contatto privacy riceverà richieste di accesso, rettifica, cancellazione e altri diritti applicabili, verificando l’identità quando necessario. La conservazione necessaria per operazioni aperte o altri obblighi va valutata. Cancellazione automatica dell’account ed esportazione non sono ancora disponibili. Non inserire dati di documenti o carte nei testi pubblici degli annunci o delle contestazioni."
+        ]
+      ]
+    },
+    "terms": {
+      "title": "Condizioni d’uso",
+      "sections": [
+        [
+          "Gestore e stato",
+          "Questa bozza descrive il servizio AutoVeri previsto. Gestore e contatti non sono ancora definitivi. La piattaforma facilita annunci e offerte e applica una commissione di servizio di CHF 30; il prezzo del veicolo viene pagato separatamente tra acquirente e venditore."
+        ],
+        [
+          "Partecipazione e correttezza degli annunci",
+          "Il servizio è destinato a persone di almeno 18 anni residenti in Svizzera o Liechtenstein. L’idoneità è autodichiarata e non è una verifica automatica di età o residenza. La registrazione telefonica accetta +41 e +423; la consegna reale degli SMS va verificata prima del lancio. Il venditore deve essere autorizzato a proporre il veicolo e descriverlo correttamente. Le verifiche non sono prova di proprietà, perizia meccanica o garanzia del veicolo."
+        ],
+        [
+          "Aste e proposte",
+          "L’approvazione avvia un’asta di sette giorni. Un’offerta accettata negli ultimi tre minuti prolunga di due minuti la scadenza corrente. Un’offerta vincente valida deve raggiungere l’eventuale prezzo di riserva nascosto. Negli annunci a prezzo fisso, il venditore accetta o rifiuta le proposte. Controlla importo e veicolo prima di un invio vincolante; le conferme esistenti descrivono tale azione."
+        ],
+        [
+          "Prenotazione e commissione di CHF 30",
+          "Prima di una nuova offerta è necessaria una prenotazione confermata di CHF 30. Non è ancora un addebito e sette giorni di validità non sono garantiti. Dopo pagamento e consegna, il venditore conferma la vendita; la prenotazione dell’acquirente vincente può essere incassata come commissione. In caso di inadempienza esaminata e approvata da un amministratore indipendente, CHF 30 restano al gestore come commissione di servizio e non vengono pagati al venditore come risarcimento."
+        ],
+        [
+          "Sblocco, contestazioni e rimborsi",
+          "Le prenotazioni superate o annullate ammissibili sono messe in coda per lo sblocco; la banca ne stabilisce la disponibilità. Una segnalazione da sola non avvia un incasso. Acquirente o venditore può aprire una pratica; quelle aperte sospendono gli incassi in attesa. Una decisione di rimborso non lo esegue. Assistenza, rimborsi e tempi di risposta sono ancora da definire; questa bozza non promette scadenze inventate o rimborsi automatici."
+        ],
+        [
+          "Versioni e modifiche",
+          "Le ricevute identificano versione, lingua e data. Una nuova versione pubblicata richiede una nuova conferma per nuovi annunci e offerte. Le prove precedenti non vengono riscritte. Pratiche esistenti, sblocchi, rinnovi e sicurezza restano accessibili senza nuove condizioni commerciali. Diritti inderogabili e clausole definitive su legge applicabile e controversie richiedono revisione prima della pubblicazione."
+        ]
+      ]
+    }
+  }
+}

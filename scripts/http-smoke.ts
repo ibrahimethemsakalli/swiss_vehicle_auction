@@ -4,6 +4,7 @@ import { randomUUID, randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { unlink } from 'node:fs/promises';
 import path from 'node:path';
+import sharp from 'sharp';
 
 async function main() {
   const database = new URL(process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? '');
@@ -16,6 +17,8 @@ async function main() {
   if (!database.pathname.endsWith('_test')) throw new Error('Isolated _test database required');
   process.env.DATABASE_URL = database.toString();
   const { db } = await import('../src/lib/db');
+  const { legalTestFixture } = await import('./legal-test-fixture');
+  const legalFixture = await legalTestFixture();
   const origin = 'http://localhost:3100';
   const uploads = path.resolve('.local/http-test-uploads');
   const server = spawn(process.execPath, ['--import', 'tsx', 'server.ts'], {
@@ -82,6 +85,7 @@ async function main() {
         phone: '+417' + String(Math.floor(Math.random() * 100000000)).padStart(8, '0'),
         role: 'PRIVATE_USER',
         language: 'en',
+        legal: legalFixture.input('en'),
       }),
     );
     assert.equal(registration.status, 201);
@@ -115,7 +119,10 @@ async function main() {
     assert.ok(ready, 'Server startup');
     const anonymous = client();
     assert.equal((await (await anonymous('/api/local-test')).json()).enabled, false);
-    assert.equal((await anonymous('/api/local-test', post({ vehicleId: randomUUID() }))).status, 404);
+    assert.equal(
+      (await anonymous('/api/local-test', post({ vehicleId: randomUUID() }))).status,
+      404,
+    );
     for (const route of [
       '/register',
       '/verify',
@@ -142,7 +149,7 @@ async function main() {
       'PASS HTTP registration, NextAuth session, role guards and missing SMS provider fail closed',
     );
     // Fixtures replace external identity evidence and SMS delivery; no runtime verification bypass exists.
-    await db.user.update({ where: { id: seller.id }, data: { phoneVerifiedAt: new Date() } });
+    await db.user.update({ where: { id: seller.id }, data: { phoneVerifiedAt: new Date(), emailVerifiedAt: new Date(), } });
     await db.user.update({ where: { id: admin.id }, data: { role: 'ADMIN' } });
     assert.equal(
       (
@@ -159,10 +166,9 @@ async function main() {
       'photo',
       new File(
         [
-          Buffer.from(
-            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jf1sAAAAASUVORK5CYII=',
-            'base64',
-          ),
+          await sharp({ create: { width: 2, height: 2, channels: 3, background: '#ffffff' } })
+            .png()
+            .toBuffer(),
         ],
         'car.png',
         { type: 'image/png' },
@@ -172,7 +178,8 @@ async function main() {
     assert.equal(uploaded.status, 201);
     const { url } = await uploaded.json();
     photo = path.basename(url);
-    assert.equal((await anonymous(url)).status, 200);
+    assert.equal((await anonymous(url)).status, 404);
+    assert.equal((await seller.request(url)).status, 200);
     const vin =
       'WBA' +
       run
@@ -215,6 +222,7 @@ async function main() {
       }),
     );
     assert.equal(reviewed.status, 200);
+    assert.equal((await anonymous(url)).status, 200);
     const detail = await (await anonymous(`/api/market/${vehicle.id}`)).json();
     assert.equal(detail.demo, false);
     assert.equal(detail.vehicle.status, 'ACTIVE');
@@ -376,8 +384,10 @@ async function main() {
     await db.paymentHold.deleteMany({ where: { vehicleId: { in: vehicles } } });
     await db.vehicle.deleteMany({ where: { id: { in: vehicles } } });
     await db.smsVerification.deleteMany({ where: { userId: { in: users } } });
+    await db.legalAcceptance.deleteMany({ where: { userId: { in: users } } });
     await db.user.deleteMany({ where: { id: { in: users } } });
-    if (photo && /^[0-9a-f-]+\.png$/.test(photo)) await unlink(path.join(uploads, photo));
+    await legalFixture.cleanup();
+    if (photo && /^[0-9a-f-]+\.(jpg|png)$/.test(photo)) await unlink(path.join(uploads, photo));
     await db.$disconnect();
   }
 }

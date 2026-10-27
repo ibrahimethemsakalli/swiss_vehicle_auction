@@ -2,16 +2,17 @@ import { db } from '../../../../lib/db';
 import { demoVehicles, demoHistory } from '../../../../lib/demo';
 import { publicVehicle, publicVehicleInclude } from '../../../../lib/public-vehicle';
 export const dynamic = 'force-dynamic';
-export async function GET(_: Request, { params }: { params: { id: string } }) {
+export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   if (!process.env.DATABASE_URL) {
-    const vehicle = demoVehicles().find((v) => v.id === params.id);
+    const vehicle = demoVehicles().find((v) => v.id === id);
     return vehicle
       ? Response.json({ demo: true, vehicle, history: demoHistory(vehicle) })
       : Response.json({ error: 'NOT_FOUND' }, { status: 404 });
   }
   try {
     const vehicle = await db.vehicle.findFirst({
-      where: { id: params.id, status: { in: ['ACTIVE', 'SOLD', 'EXPIRED'] } },
+      where: { id, status: { in: ['ACTIVE', 'SOLD', 'EXPIRED'] } },
       include: { ...publicVehicleInclude, settlement: { select: { status: true } } },
     });
     if (!vehicle) return Response.json({ error: 'NOT_FOUND' }, { status: 404 });

@@ -1,5 +1,8 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from './auth';
+import { LegalError } from './legal-policy';
+import { z } from 'zod';
+import { publicValidation } from './validation-errors';
 export async function requireUser() {
   const session = await getServerSession(authOptions);
   const id = (session?.user as { id?: string } | undefined)?.id;
@@ -7,6 +10,13 @@ export async function requireUser() {
   return id;
 }
 export function apiError(error: unknown) {
+  if (error instanceof z.ZodError)
+    return Response.json(
+      { error: 'REQUEST_REJECTED', validation: publicValidation(error) },
+      { status: 400, headers: { 'Cache-Control': 'no-store' } },
+    );
+  if (error instanceof LegalError)
+    return Response.json({ error: error.code }, { status: error.status });
   if (
     error instanceof Error &&
     ['RATE_LIMITED', 'PROVIDER_UNAVAILABLE', 'FORBIDDEN', 'VERIFICATION_REQUIRED'].includes(

@@ -1,0 +1,327 @@
+{
+  "reviewedAt": "2026-10-27",
+  "lockfileSha256": "b7659ea2d33d0217443ced7dd54f4455e9e9dbbd3f7cd4de43b48de4ebe6cd49",
+  "before": {
+    "info": 0,
+    "low": 2,
+    "moderate": 16,
+    "high": 15,
+    "critical": 4
+  },
+  "after": {
+    "info": 0,
+    "low": 2,
+    "moderate": 11,
+    "high": 12,
+    "critical": 3
+  },
+  "remainingAdvisories": [
+    {
+      "package": "next",
+      "severity": "moderate",
+      "title": "Next.js self-hosted applications vulnerable to DoS via Image Optimizer remotePatterns configuration",
+      "patchedVersions": ">=15.5.10",
+      "url": "https://github.com/advisories/GHSA-9g9p-9gw9-jx7f",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "next",
+      "severity": "high",
+      "title": "Next.js HTTP request deserialization can lead to DoS when using insecure React Server Components",
+      "patchedVersions": ">=15.0.8",
+      "url": "https://github.com/advisories/GHSA-h25m-26qc-wcjf",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "next",
+      "severity": "moderate",
+      "title": "Next.js: HTTP request smuggling in rewrites",
+      "patchedVersions": ">=15.5.13",
+      "url": "https://github.com/advisories/GHSA-ggv3-7p47-pfv8",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "next",
+      "severity": "moderate",
+      "title": "Next.js: Unbounded next/image disk cache growth can exhaust storage",
+      "patchedVersions": ">=15.5.14",
+      "url": "https://github.com/advisories/GHSA-3x4c-7xq6-9pq8",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "effect",
+      "severity": "high",
+      "title": "Effect `AsyncLocalStorage` context lost/contaminated inside Effect fibers under concurrent load with RPC",
+      "patchedVersions": ">=3.20.0",
+      "url": "https://github.com/advisories/GHSA-38f7-945m-qr2g",
+      "dependencyPaths": [
+        ".>@prisma/client>prisma>@prisma/config>effect",
+        ".>prisma>@prisma/config>effect"
+      ]
+    },
+    {
+      "package": "next",
+      "severity": "high",
+      "title": "Next.js has a Denial of Service with Server Components",
+      "patchedVersions": ">=15.5.15",
+      "url": "https://github.com/advisories/GHSA-q4gf-8mx6-v5v3",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "next",
+      "severity": "high",
+      "title": "Next.js Vulnerable to Denial of Service with Server Components",
+      "patchedVersions": ">=15.5.16",
+      "url": "https://github.com/advisories/GHSA-8h8q-6873-q5fj",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "next",
+      "severity": "low",
+      "title": "Next.js's Middleware / Proxy redirects can be cache-poisoned",
+      "patchedVersions": ">=15.5.16",
+      "url": "https://github.com/advisories/GHSA-3g8h-86w9-wvmq",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "next",
+      "severity": "moderate",
+      "title": "Next.js vulnerable to cross-site scripting in App Router applications using CSP nonces",
+      "patchedVersions": ">=15.5.16",
+      "url": "https://github.com/advisories/GHSA-ffhc-5mcf-pf4q",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "next",
+      "severity": "low",
+      "title": "Next.js vulnerable to cache poisoning via collisions in React Server Component cache-busting",
+      "patchedVersions": ">=15.5.16",
+      "url": "https://github.com/advisories/GHSA-vfv6-92ff-j949",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "next",
+      "severity": "moderate",
+      "title": "Next.js has cross-site scripting in beforeInteractive scripts with untrusted input",
+      "patchedVersions": ">=15.5.16",
+      "url": "https://github.com/advisories/GHSA-gx5p-jg67-6x7h",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "next",
+      "severity": "moderate",
+      "title": "Next.js has a Denial of Service in the Image Optimization API",
+      "patchedVersions": ">=15.5.16",
+      "url": "https://github.com/advisories/GHSA-h64f-5h5j-jqjh",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "next",
+      "severity": "high",
+      "title": "Next.js vulnerable to server-side request forgery in applications using WebSocket upgrades",
+      "patchedVersions": ">=15.5.16",
+      "url": "https://github.com/advisories/GHSA-c4j6-fc7j-m34r",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "next",
+      "severity": "moderate",
+      "title": "Next.js vulnerable to cache poisoning in React Server Component responses",
+      "patchedVersions": ">=15.5.16",
+      "url": "https://github.com/advisories/GHSA-wfc6-r584-vfw7",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "next",
+      "severity": "high",
+      "title": "Next.js has a Middleware / Proxy bypass in Pages Router applications using i18n",
+      "patchedVersions": ">=15.5.16",
+      "url": "https://github.com/advisories/GHSA-36qx-fr4f-26g5",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "next",
+      "severity": "high",
+      "title": "Next.js: Denial of Service in App Router using Server Actions",
+      "patchedVersions": ">=15.5.21",
+      "url": "https://github.com/advisories/GHSA-m99w-x7hq-7vfj",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "next",
+      "severity": "high",
+      "title": "Next.js: Server-Side Request Forgery in Server Actions on custom servers",
+      "patchedVersions": ">=15.5.21",
+      "url": "https://github.com/advisories/GHSA-89xv-2m56-2m9x",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "next",
+      "severity": "moderate",
+      "title": "Next.js: Cache confusion of response bodies for requests with bodies",
+      "patchedVersions": ">=15.5.21",
+      "url": "https://github.com/advisories/GHSA-68g3-v927-f742",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "next",
+      "severity": "moderate",
+      "title": "Next.js: Cache confusion of response bodies for requests with bodies containing invalid UTF-8 byte sequences",
+      "patchedVersions": ">=15.5.21",
+      "url": "https://github.com/advisories/GHSA-4633-3j49-mh5q",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "next",
+      "severity": "moderate",
+      "title": "Next.js: Unbounded Server Action payload in Edge runtime",
+      "patchedVersions": ">=15.5.21",
+      "url": "https://github.com/advisories/GHSA-4c39-4ccg-62r3",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "next",
+      "severity": "high",
+      "title": "Next.js: Server-Side Request Forgery in rewrites via attacker-controlled destination hostname",
+      "patchedVersions": ">=15.5.21",
+      "url": "https://github.com/advisories/GHSA-p9j2-gv94-2wf4",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "next",
+      "severity": "moderate",
+      "title": "Next.js: Unauthenticated disclosure of internal Server Function endpoints",
+      "patchedVersions": ">=15.5.21",
+      "url": "https://github.com/advisories/GHSA-955p-x3mx-jcvp",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "deepmerge-ts",
+      "severity": "high",
+      "title": "DeepmergeTS has stack exhaustion when merging recursive object graphs",
+      "patchedVersions": ">=8.0.0",
+      "url": "https://github.com/advisories/GHSA-ggr8-5vv4-36mx",
+      "dependencyPaths": [
+        ".>@prisma/client>prisma>@prisma/config>deepmerge-ts",
+        ".>prisma>@prisma/config>deepmerge-ts"
+      ]
+    },
+    {
+      "package": "next",
+      "severity": "critical",
+      "title": "Next.js: Unauthenticated Remote Code Execution on windows-hosted servers",
+      "patchedVersions": ">=15.5.24",
+      "url": "https://github.com/advisories/GHSA-p293-qw3h-jr36",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "next",
+      "severity": "critical",
+      "title": "Next.js: Unauthenticated Remote Code Execution in Image Optimization API when AVIF files are used",
+      "patchedVersions": ">=15.5.24",
+      "url": "https://github.com/advisories/GHSA-2xp9-vwfh-vxw4",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "next",
+      "severity": "critical",
+      "title": "Next.js: Unauthenticated Remote Code Execution in Image Optimization API when SVG files are used",
+      "patchedVersions": ">=15.5.28",
+      "url": "https://github.com/advisories/GHSA-2464-fhr4-w9xw",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "next",
+      "severity": "high",
+      "title": "Next.js: Denial of Service in App Router using Server Actions",
+      "patchedVersions": ">=15.5.28",
+      "url": "https://github.com/advisories/GHSA-p3m5-59mp-jv5r",
+      "dependencyPaths": [
+        ".>next",
+        ".>next-auth>next"
+      ]
+    },
+    {
+      "package": "zod",
+      "severity": "high",
+      "title": "Zod can exhaust memory while validating oversized constrained collections",
+      "patchedVersions": ">=4.6.6",
+      "url": "https://github.com/advisories/GHSA-mrhx-c7xc-m3w5",
+      "dependencyPaths": [
+        ".>zod"
+      ]
+    }
+  ]
+}

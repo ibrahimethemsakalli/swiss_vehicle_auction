@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     assertSameOrigin(request);
     const id = await requireUser();
     const input = z
-      .object({ userId: z.string().uuid(), evidenceReference: z.string().trim().min(10).max(500) })
+      .object({ userId: z.uuid(), evidenceReference: z.string().trim().min(10).max(500) })
       .strict()
       .parse(await request.json());
     await approveIdentity(id, input.userId, input.evidenceReference);

@@ -591,6 +591,9 @@ export function Marketplace() {
         <div className="container">
           <p className="eyebrow">AUTOVERI</p>
           <h2>{t('howTitle')}</h2>
+          <Link className="help-return" href="/help">
+            {t('helpTitle')}
+          </Link>
           <div className="how-grid">
             {[1, 2, 3].map((n) => (
               <div key={n}>

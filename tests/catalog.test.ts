@@ -90,7 +90,10 @@ test('listing input preserves technical values and rejects invalid specification
     serviceHistory: 'FULL',
     tireCondition: 'Good',
     description: 'Test',
-    images: ['https://example.test/1.jpg', 'https://example.test/2.jpg'],
+    images: [
+      '/api/uploads/11111111-1111-4111-8111-111111111111.jpg',
+      '/api/uploads/22222222-2222-4222-8222-222222222222.jpg',
+    ],
     listingType: 'AUCTION_7_DAYS',
     startPrice: '1000',
     fuelType: 'ELECTRIC',

@@ -23,6 +23,8 @@ import { Input } from './ui/input';
 import { DemoBanner, useResource, VehicleImage } from './common';
 import { cantons } from '../lib/market-types';
 import { vehicleCatalog } from '../lib/vehicle-catalog';
+import { ValidationErrors } from './validation-errors';
+import { readValidation, type ValidationIssue } from '../lib/validation-public';
 type Draft = {
   stammnummer: string;
   vinChassis: string;
@@ -40,7 +42,7 @@ type Draft = {
   reservePrice: string;
   description: string;
 };
-type Photo = { file: File; preview: string; url?: string };
+type Photo = { file: File; preview: string; url?: string; expiresAt?: string };
 const empty: Draft = {
   stammnummer: '',
   vinChassis: '',
@@ -74,6 +76,7 @@ export function ListingWizard() {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<MessageKey | null>(null);
+  const [validation, setValidation] = useState<ValidationIssue[]>([]);
   const [consent, setConsent] = useState(false);
   const [success, setSuccess] = useState(false);
   const photoRefs = useRef<Photo[]>([]);
@@ -90,7 +93,10 @@ export function ListingWizard() {
     },
     [],
   );
-  const update = (key: keyof Draft, value: string) => setDraft((old) => ({ ...old, [key]: value }));
+  const update = (key: keyof Draft, value: string) => {
+    setValidation([]);
+    setDraft((old) => ({ ...old, [key]: value }));
+  };
   const today = new Date().toISOString().slice(0, 10);
   function go(next: number) {
     setMessage(null);
@@ -148,19 +154,32 @@ export function ListingWizard() {
     if (!consent || busy || data?.demo) return;
     setBusy(true);
     setMessage(null);
+    setValidation([]);
     try {
       const uploaded: Photo[] = [];
       for (const photo of photos) {
-        if (photo.url) {
+        if (photo.url && photo.expiresAt && Date.parse(photo.expiresAt) > Date.now()) {
           uploaded.push(photo);
           continue;
         }
         const form = new FormData();
         form.set('photo', photo.file);
         const response = await fetch('/api/uploads', { method: 'POST', body: form });
-        if (!response.ok) throw new Error();
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(
+            error.error === 'PHOTO_QUOTA_EXCEEDED'
+              ? 'uploadQuota'
+              : error.error === 'PHOTO_BUSY'
+                ? 'uploadBusy'
+                : error.error === 'INVALID_IMAGE' || error.error === 'PHOTO_TOO_LARGE'
+                  ? 'invalidPhoto'
+                  : 'submitFailed',
+          );
+        }
         const result = await response.json();
         photo.url = result.url;
+        photo.expiresAt = result.expiresAt;
         uploaded.push(photo);
       }
       setPhotos([...uploaded]);
@@ -185,10 +204,18 @@ export function ListingWizard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        setValidation(readValidation(await response.json().catch(() => ({}))));
+        throw new Error();
+      }
       setSuccess(true);
-    } catch {
-      setMessage('submitFailed');
+    } catch (error) {
+      setMessage(
+        error instanceof Error &&
+          ['uploadQuota', 'uploadBusy', 'invalidPhoto'].includes(error.message)
+          ? (error.message as MessageKey)
+          : 'submitFailed',
+      );
     } finally {
       setBusy(false);
     }
@@ -257,7 +284,7 @@ export function ListingWizard() {
           ))}
         </ol>
         <div className="wizard-layout">
-          <section className="panel wizard-form">
+          <section className="panel wizard-form" onInput={() => setValidation([])}>
             <h2 ref={heading} tabIndex={-1}>
               {t(
                 step === 0
@@ -285,6 +312,7 @@ export function ListingWizard() {
                 {t(message)}
               </p>
             )}
+            <ValidationErrors issues={validation} />
             {step === 0 && (
               <>
                 <label className="upload-zone">

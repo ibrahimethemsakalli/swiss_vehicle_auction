@@ -77,7 +77,7 @@ async function main() {
         phone: `fixture-${id}`,
         passwordHash,
         role,
-        phoneVerifiedAt: new Date(),
+        phoneVerifiedAt: new Date(), emailVerifiedAt: new Date(),
         isIdentityVerified: true,
       },
     });

@@ -3,14 +3,18 @@ import { demoVehicles } from '../../../lib/demo';
 import { publicVehicle, publicVehicleInclude } from '../../../lib/public-vehicle';
 import { filterInput, marketWhere } from '../../../lib/market-query';
 import { filterVehicles } from '../../../lib/market-types';
+import { publicValidation } from '../../../lib/validation-errors';
 export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   let filters;
   try {
     filters = filterInput.parse(JSON.parse(params.get('filters') ?? '{}'));
-  } catch {
-    return Response.json({ error: 'INVALID_FILTERS' }, { status: 400 });
+  } catch (error) {
+    return Response.json(
+      { error: 'INVALID_FILTERS', validation: publicValidation(error) },
+      { status: 400, headers: { 'Cache-Control': 'no-store' } },
+    );
   }
   const page = Math.max(1, Math.min(100000, Number(params.get('page')) || 1));
   if (!Number.isInteger(page)) return Response.json({ error: 'INVALID_PAGE' }, { status: 400 });

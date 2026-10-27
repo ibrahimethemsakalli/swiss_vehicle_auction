@@ -12,11 +12,11 @@ export async function POST(request: Request) {
         z
           .object({
             action: z.literal('create'),
-            vehicleId: z.string().uuid(),
-            replacementBidId: z.string().uuid().optional(),
+            vehicleId: z.uuid(),
+            replacementBidId: z.uuid().optional(),
           })
           .strict(),
-        z.object({ action: z.literal('confirm'), holdId: z.string().uuid() }).strict(),
+        z.object({ action: z.literal('confirm'), holdId: z.uuid() }).strict(),
       ])
       .parse(await request.json());
     if (input.action === 'confirm') {

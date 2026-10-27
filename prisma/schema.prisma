@@ -1,10 +1,11 @@
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output = "../src/generated/prisma"
+  moduleFormat = "esm"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum Role {
@@ -65,6 +66,7 @@ model User {
   language           String         @default("de")
   isIdentityVerified Boolean        @default(false)
   phoneVerifiedAt    DateTime?
+  emailVerifiedAt    DateTime?
   suspendedAt        DateTime?
   swissId            String?        @unique
   canton             String?
@@ -75,6 +77,20 @@ model User {
   vehicles           Vehicle[]
   bids               Bid[]
   holds              PaymentHold[]
+  media              MediaAsset[]
+  legalAcceptances   LegalAcceptance[]
+  accountChallenges AccountChallenge[]
+}
+
+model AccountChallenge {
+  id String @id
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  purpose String
+  tokenHash String
+  expiresAt DateTime
+  @@unique([userId, purpose])
+  @@index([expiresAt], map: "AccountChallenge_expiry")
 }
 
 model Vehicle {
@@ -134,6 +150,9 @@ model Vehicle {
   auctionLogs       AuctionLog[]
   holds             PaymentHold[]
   settlement        Settlement?
+  media             MediaAsset[]
+  legalAcceptanceId String?
+  legalAcceptance LegalAcceptance? @relation(fields: [legalAcceptanceId], references: [id], onDelete: Restrict)
 
   @@index([status, canton, auctionEndsAt])
   @@index([status, make, model])
@@ -153,6 +172,8 @@ model Bid {
   createdAt      DateTime    @default(now())
   offerExpiresAt DateTime?
   settlement     Settlement?
+  legalAcceptanceId String?
+  legalAcceptance LegalAcceptance? @relation(fields: [legalAcceptanceId], references: [id], onDelete: Restrict)
 
   @@unique([userId, requestId])
   @@index([vehicleId, status])
@@ -219,6 +240,8 @@ model PaymentHold {
   createdAt            DateTime      @default(now())
   bid                  Bid?
   transactions         Transaction[]
+  legalAcceptanceId String?
+  legalAcceptance LegalAcceptance? @relation(fields: [legalAcceptanceId], references: [id], onDelete: Restrict)
 }
 
 model Transaction {
@@ -269,4 +292,75 @@ model OutboxEvent {
   deliveredAt DateTime?
 
   @@index([deliveredAt, createdAt])
+}
+
+model MediaAsset {
+  id        String   @id @default(uuid())
+  filename  String   @unique
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  vehicleId String?
+  vehicle   Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  status    String   @default("STAGING")
+  bytes     Int
+  width     Int?
+  height    Int?
+  createdAt DateTime @default(now())
+
+  @@index([ownerId, status])
+  @@index([status, vehicleId, createdAt])
+}
+
+model LegalRelease {
+  id String @id @default(uuid())
+  version String @unique
+  publishedAt DateTime @default(now())
+  documents LegalDocument[]
+  current LegalCurrent?
+  acceptances LegalAcceptance[]
+}
+
+model LegalCurrent {
+  id String @id @default("current")
+  releaseId String @unique
+  release LegalRelease @relation(fields:[releaseId],references:[id])
+}
+
+model LegalDocument {
+  id String @id @default(uuid())
+  releaseId String
+  release LegalRelease @relation(fields:[releaseId],references:[id])
+  kind String
+  locale String
+  title String
+  content Json
+  contentHash String
+  termsAcceptances LegalAcceptance[] @relation("AcceptedTerms")
+  privacyAcknowledgements LegalAcceptance[] @relation("AcknowledgedPrivacy")
+
+  @@unique([releaseId,kind,locale])
+}
+
+model LegalAcceptance {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields:[userId],references:[id])
+  releaseId String
+  release LegalRelease @relation(fields:[releaseId],references:[id])
+  termsDocumentId String
+  termsDocument LegalDocument @relation("AcceptedTerms",fields:[termsDocumentId],references:[id])
+  privacyDocumentId String
+  privacyDocument LegalDocument @relation("AcknowledgedPrivacy",fields:[privacyDocumentId],references:[id])
+  locale String
+  source String
+  termsAccepted Boolean
+  privacyAcknowledged Boolean
+  eligibilityDeclared Boolean
+  acceptedAt DateTime @default(now())
+  vehicles Vehicle[]
+  bids Bid[]
+  holds PaymentHold[]
+
+  @@unique([userId,releaseId])
+  @@index([userId,acceptedAt])
 }

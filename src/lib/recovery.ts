@@ -3,10 +3,7 @@ import { compare, hash } from 'bcryptjs';
 import { z } from 'zod';
 import { db } from './db';
 import { rateLimit } from './rate-limit';
-const password = z
-  .string()
-  .min(12)
-  .refine((v) => Buffer.byteLength(v, 'utf8') <= 72);
+import { passwordInput as password, emailInput } from './validation-inputs';
 const digest = (value: string) => createHash('sha256').update(value.trim()).digest('hex');
 export async function generateRecoveryCodes(userId: string, currentPassword: string) {
   if (typeof currentPassword !== 'string' || Buffer.byteLength(currentPassword) > 72)
@@ -31,7 +28,7 @@ export async function generateRecoveryCodes(userId: string, currentPassword: str
 export async function resetPassword(raw: unknown) {
   const input = z
     .object({
-      email: z.string().trim().toLowerCase().email().max(254),
+      email: emailInput,
       code: z.string().trim().min(20).max(128),
       password,
     })
@@ -53,6 +50,7 @@ export async function resetPassword(raw: unknown) {
       data: { passwordHash, authVersion: { increment: 1 } },
     });
     await tx.recoveryCode.deleteMany({ where: { userId: user.id } });
+    await tx.$executeRaw`DELETE FROM "AccountChallenge" WHERE "userId"=${user.id}`;
   });
 }
 export async function changePassword(userId: string, raw: unknown) {
@@ -76,5 +74,6 @@ export async function changePassword(userId: string, raw: unknown) {
     });
     if (!changed.count) throw new Error('INVALID_CREDENTIALS');
     await tx.recoveryCode.deleteMany({ where: { userId } });
+    await tx.$executeRaw`DELETE FROM "AccountChallenge" WHERE "userId"=${userId}`;
   });
 }

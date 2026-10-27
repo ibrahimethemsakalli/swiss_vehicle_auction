@@ -1,0 +1,43 @@
+{
+  "reviewedAt": "2026-10-27",
+  "zodVersion": "4.6.7",
+  "lockfileSha256": "4c04826b63039f4b9e1a8be9bc67b67414a158f1ce1c0e0fb8dacb423db4a088",
+  "before": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 3,
+    "critical": 0
+  },
+  "after": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 2,
+    "critical": 0
+  },
+  "remainingAdvisories": [
+    {
+      "package": "effect",
+      "severity": "high",
+      "title": "Effect `AsyncLocalStorage` context lost/contaminated inside Effect fibers under concurrent load with RPC",
+      "patchedVersions": ">=3.20.0",
+      "url": "https://github.com/advisories/GHSA-38f7-945m-qr2g",
+      "dependencyPaths": [
+        ".>@prisma/client>prisma>@prisma/config>effect",
+        ".>prisma>@prisma/config>effect"
+      ]
+    },
+    {
+      "package": "deepmerge-ts",
+      "severity": "high",
+      "title": "DeepmergeTS has stack exhaustion when merging recursive object graphs",
+      "patchedVersions": ">=8.0.0",
+      "url": "https://github.com/advisories/GHSA-ggr8-5vv4-36mx",
+      "dependencyPaths": [
+        ".>@prisma/client>prisma>@prisma/config>deepmerge-ts",
+        ".>prisma>@prisma/config>deepmerge-ts"
+      ]
+    }
+  ]
+}

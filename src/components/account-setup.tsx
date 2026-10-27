@@ -7,23 +7,31 @@ import { useLocale } from './providers';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useResource, Loading, ErrorState } from './common';
+import { LegalChecks, emptyLegalChecks, type LegalSummary } from './legal-pages';
+import { ValidationErrors } from './validation-errors';
+import { readValidation, type ValidationIssue } from '../lib/validation-public';
 export function Registration() {
   const { t, locale } = useLocale();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<'registrationFailed' | 'legalVersionChanged' | null>(null);
   const [dealer, setDealer] = useState(false);
+  const [validation, setValidation] = useState<ValidationIssue[]>([]);
+  const legal = useResource<LegalSummary>(`/api/legal?lang=${locale}`);
+  const [checks, setChecks] = useState({ ...emptyLegalChecks });
   return (
     <div className="login-page">
       <section className="login-card panel">
         <h1>{t('register')}</h1>
         <p>{t('registerHelp')}</p>
         <form
+          onInput={() => setValidation([])}
           onSubmit={async (e) => {
             e.preventDefault();
             const form = new FormData(e.currentTarget);
             setBusy(true);
-            setError(false);
+            setError(null);
+            setValidation([]);
             try {
               const payload = {
                 email: form.get('email'),
@@ -31,6 +39,9 @@ export function Registration() {
                 phone: form.get('phone'),
                 role: dealer ? 'DEALER' : 'PRIVATE_USER',
                 language: locale,
+                ...(legal.data && !legal.data.draft
+                  ? { legal: { releaseId: legal.data.releaseId, locale, ...checks } }
+                  : {}),
                 ...(dealer
                   ? {
                       companyName: form.get('companyName'),
@@ -43,15 +54,28 @@ export function Registration() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
               });
-              if (!response.ok) throw new Error();
+              if (!response.ok) {
+                const result = await response.json().catch(() => ({}));
+                setValidation(readValidation(result));
+                throw new Error(
+                  result.error === 'LEGAL_VERSION_CHANGED'
+                    ? 'legalVersionChanged'
+                    : 'registrationFailed',
+                );
+              }
               const result = await signIn('credentials', {
                 email: payload.email,
                 password: payload.password,
                 redirect: false,
               });
               router.push(result?.ok ? '/verify' : '/login');
-            } catch {
-              setError(true);
+            } catch (error) {
+              setError(
+                error instanceof Error && error.message === 'legalVersionChanged'
+                  ? 'legalVersionChanged'
+                  : 'registrationFailed',
+              );
+              legal.reload();
             } finally {
               setBusy(false);
             }
@@ -88,8 +112,8 @@ export function Registration() {
               name="phone"
               type="tel"
               autoComplete="tel"
-              placeholder="+41791234567"
-              pattern="\+41[1-9][0-9]{8}"
+              placeholder="+41791234567 / +4236612345"
+              pattern="\+(41[1-9][0-9]{8}|423[1-9][0-9]{6})"
               required
             />
           </label>
@@ -111,10 +135,29 @@ export function Registration() {
           )}
           {error && (
             <p role="alert" className="notice">
-              {t('registrationFailed')}
+              {t(error)}
             </p>
           )}
-          <Button className="w-full mt-4" variant="green" disabled={busy}>
+          <ValidationErrors issues={validation} />
+          {legal.data && <LegalChecks summary={legal.data} value={checks} onChange={setChecks} />}
+          {!legal.loading && !legal.data && (
+            <p className="notice" role="alert">
+              {t('legalNotAvailable')}
+            </p>
+          )}
+          <Button
+            className="w-full mt-4"
+            variant="green"
+            disabled={
+              busy ||
+              legal.loading ||
+              !legal.data ||
+              legal.data.locale !== locale ||
+              (legal.data.draft
+                ? !legal.data.localDraft
+                : !legal.data.acknowledgements || !Object.values(checks).every(Boolean))
+            }
+          >
             {t(busy ? 'loading' : 'register')}
           </Button>
         </form>

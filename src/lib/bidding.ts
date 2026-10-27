@@ -1,14 +1,15 @@
 import { z } from 'zod';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../generated/prisma/client';
 import { db } from './db';
 import { auctionEndAfterBid } from './auction-rules';
 import { syncHold, type PaymentGateway, stripeGateway } from './payments';
 import { queueRelease } from './settlement-state';
+import { requireCurrentLegal } from './legal';
 export const bidInput = z
   .object({
-    vehicleId: z.string().uuid(),
-    holdId: z.string().uuid(),
-    requestId: z.string().uuid(),
+    vehicleId: z.uuid(),
+    holdId: z.uuid(),
+    requestId: z.uuid(),
     amount: z.string().regex(/^\d{1,9}(\.\d{1,2})?$/),
   })
   .strict();
@@ -21,7 +22,10 @@ export async function placeBid(
   const prior = await db.bid.findUnique({
     where: { userId_requestId: { userId, requestId: input.requestId } },
   });
-  if (!prior) await syncHold(input.holdId, userId, gateway);
+  if (!prior) {
+    await requireCurrentLegal(userId);
+    await syncHold(input.holdId, userId, gateway);
+  }
   return db.$transaction(
     async (tx) => {
       // All writers to this auction must acquire this same lock before reading state.
@@ -39,7 +43,13 @@ export async function placeBid(
         return { bidId: previousRequest.id };
       }
       const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
-      if (user.suspendedAt || !user.isIdentityVerified || !user.phoneVerifiedAt)
+      const legal = await requireCurrentLegal(userId, tx);
+      if (
+        user.suspendedAt ||
+        !user.isIdentityVerified ||
+        !user.phoneVerifiedAt ||
+        !user.emailVerifiedAt
+      )
         throw new Error('VERIFICATION_REQUIRED');
       const vehicle = await tx.vehicle.findUniqueOrThrow({ where: { id: input.vehicleId } });
       if (vehicle.isSample || user.isSample) throw new Error('SAMPLE_READ_ONLY');
@@ -86,6 +96,7 @@ export async function placeBid(
           amount,
           holdId: hold.id,
           requestId: input.requestId,
+          legalAcceptanceId: legal?.id,
         },
       });
       const extended = end.getTime() !== vehicle.auctionEndsAt.getTime();

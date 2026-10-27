@@ -24,7 +24,7 @@ export function OfferForm({
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<'offerSent' | 'offerFailed' | null>(null);
-  const request = useRef<{ key: string; id: string }>();
+  const request = useRef<{ key: string; id: string } | undefined>(undefined);
   if (disabled) return null;
   if (status !== 'authenticated')
     return (

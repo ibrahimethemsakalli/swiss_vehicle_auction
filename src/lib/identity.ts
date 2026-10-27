@@ -8,6 +8,7 @@ export async function approveIdentity(adminId: string, userId: string, evidenceR
     const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
     if (
       !user.phoneVerifiedAt ||
+      !user.emailVerifiedAt ||
       user.suspendedAt ||
       user.isIdentityVerified ||
       (user.role === 'DEALER' && (!user.companyName || !user.handelsregisterNr))

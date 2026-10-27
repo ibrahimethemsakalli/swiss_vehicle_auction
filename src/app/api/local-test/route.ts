@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     assertLocalRequest(request);
     const user = await assertLocalAccount(await requireUser());
     const { vehicleId } = z
-      .object({ vehicleId: z.string().uuid() })
+      .object({ vehicleId: z.uuid() })
       .strict()
       .parse(await request.json());
     const vehicle = await assertLocalVehicle(vehicleId);

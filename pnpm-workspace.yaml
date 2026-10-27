@@ -5,3 +5,15 @@ allowBuilds:
   esbuild: true
   tesseract.js: false
   '@embedded-postgres/windows-x64': true
+  # CI uses a PostgreSQL service; never run bundled Linux/macOS database installers.
+  '@embedded-postgres/linux-x64': false
+  '@embedded-postgres/linux-arm64': false
+  '@embedded-postgres/linux-arm': false
+  '@embedded-postgres/linux-ia32': false
+  '@embedded-postgres/linux-ppc64': false
+  '@embedded-postgres/darwin-arm64': false
+  '@embedded-postgres/darwin-x64': false
+
+overrides:
+  'postcss@>=8.0.0 <8.5.23': 8.5.23
+  'postcss-selector-parser@>=6.0.0 <6.1.5': 6.1.5
