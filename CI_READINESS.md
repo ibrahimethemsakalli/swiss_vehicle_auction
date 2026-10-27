@@ -1,6 +1,8 @@
 # PM-07 — CI ve bağımlılık incelemesi
 
-**Güncel durum:** Prisma CLI/client/adapter-pg 7.10.1 geçişi tamamlandı; geçici deepmerge override kaldırıldı ve audit 0 bildirim. Generate/config, izole migration/drift, bağlantı havuzu ve DB işlemleri geçti. Ardından API/DB kapalı ayrı production build de TypeScript ve 31 statik sayfa üretimi dahil geçti. DB job'u `pnpm test:prisma` çalıştırır. Kanıt: PRISMA7_MIGRATION.md. Uzak Actions henüz çalıştırılmadı. Aşağıdaki PM-07/07A/07B/07C bulguları tarihsel kayıttır.
+**Güncel durum:** Prisma CLI/client/adapter-pg 7.10.1 geçişi tamamlandı; geçici deepmerge override kaldırıldı ve audit 0 bildirim. Generate/config, izole migration/drift, bağlantı havuzu ve DB işlemleri geçti. Ardından API/DB kapalı ayrı production build de TypeScript ve 31 statik sayfa üretimi dahil geçti. DB job'u `pnpm test:prisma` çalıştırır. Kanıt: PRISMA7_MIGRATION.md. GitHub Actions artık main push ve PR olaylarında çalışıyor; güncel sonuç ilgili commit'in kontrolleridir. Aşağıdaki PM-07/07A/07B/07C bulguları tarihsel kayıttır.
+
+İlk [GitHub CI çalıştırmasında](https://github.com/ibrahimethemsakalli/swiss_vehicle_auction/actions/runs/40595403187) audit, typecheck, production build/HTTP ve izole PostgreSQL job'ları geçti. Unit job'unda 69 kontrolden biri, kaynak fotoğraf bilgilerine göre değiştirilmiş BMW modelinin eski adını bekliyordu. Filtre testi sabit araç kimliği ve markayı doğrulayacak şekilde düzeltildi; yerelde yalnızca ilgili test dosyası çalıştırıldı ve 5/5 geçti. Sonraki commit CI sonucuyla bu düzeltme de uzakta doğrulanır; test atlama veya hata gizleme eklenmedi.
 
 İnceleme: 27 Ekim 2026. Workflow dosyaları yerelde hazır; bu görevde GitHub'a push veya uzaktan Actions çalıştırması yapılmadı. GitHub üzerindeki ilk gerçek runner sonucu henüz doğrulanmadı. Önceki PM işleri çalışma ağacında korunuyor.
 

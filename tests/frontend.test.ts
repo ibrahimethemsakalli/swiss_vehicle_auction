@@ -38,7 +38,9 @@ test('private filter excludes dealers and combined search filters narrow results
     mileage: 70000,
   });
   assert.equal(result.length, 1);
-  assert.equal(result[0].model, '320d Touring');
+  // Filtering selects the fixture identity; source-backed display names can gain trim detail.
+  assert.equal(result[0].id, 'demo-2');
+  assert.equal(result[0].make, 'BMW');
 });
 test('price sorting never mutates source order', () => {
   const vehicles = demoVehicles();
