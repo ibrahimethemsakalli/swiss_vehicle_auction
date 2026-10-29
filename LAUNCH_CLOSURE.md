@@ -1,5 +1,9 @@
 # PM-36 — Sabit kapsam ve tek kapanış listesi
 
+## 39f0453 GitHub Actions düzeltmesi — 29 Ekim 2026
+
+CI run `40796422954`: typecheck, build (HTTP/Socket.IO adımı dahil) ve dependency-audit başarılı; unit ve database-schema başarısızdı. Bildirim çeviri testi eski sabit 24 anahtar beklentisi nedeniyle yeni 28 anahtarı reddediyordu; dört dilde birebir anahtar kümesi, dolu metin ve interpolation eşitliği kontrolüne çevrildi. Başarısız bu tek test hedeflenerek geçti. Prisma'nın varsayılan ON UPDATE CASCADE beklentisi ile Support/L11 migration'larının mevcut NO ACTION kuralları arasındaki 31 ilişki farkı şemada açık `onUpdate:NoAction` ile giderildi. Eski migration'lar ve veri davranışı değiştirilmedi. Yeni dar kapsamlı `scripts/check-ci-schema-drift.mjs`, yalnızca geçici loopback DB'ye migration geçmişini uygulayıp sıfır drift doğruladı ve test DB'sini temizledi. Ana DB'ye migration/iş akışı uygulanmadı; gerçek sağlayıcı kullanılmadı. Yerelde başarılı eski kontroller tekrarlanmadı; yeni alt görev yok. Düzeltme push'u mevcut GitHub CI workflow'unu otomatik tetikler; son uzak sonuç ayrıca kaydedilir.
+
 ## Devam notu — 29 Ekim 2026
 
 GitHub gönderim hazırlığı: CI'ın production build önizlemesi L19'un açık `preview` moduna, kapalı proxy/L11 worker ve business worker ayarlarına uyarlandı. Bu ayar uyumu için eski HTTP akışları yerelde tekrar çalıştırılmadı; GitHub'ın mevcut push workflow'u otomatik çalışabilir. Yerel sırlar, yedekler ve test çıktıları `.gitignore` ile gönderim dışında kalır.

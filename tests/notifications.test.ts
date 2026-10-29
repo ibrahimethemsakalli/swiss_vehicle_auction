@@ -69,10 +69,17 @@ test('new notification translations are complete and share interpolation across 
   const keys = Object.keys(catalogs[0]).filter(
     (k) => k.startsWith('notice') || k.startsWith('notifications'),
   );
-  assert.equal(keys.length, 24);
-  for (const catalog of catalogs)
+  assert.ok(keys.includes('notificationsTitle') && keys.includes('noticeOutbid'));
+  for (const catalog of catalogs) {
+    assert.deepEqual(
+      Object.keys(catalog)
+        .filter((k) => k.startsWith('notice') || k.startsWith('notifications'))
+        .sort(),
+      [...keys].sort(),
+    );
     for (const key of keys) {
       assert.ok(catalog[key]?.trim(), key);
       assert.deepEqual(catalog[key].match(/\{\{\w+\}\}/g), catalogs[0][key].match(/\{\{\w+\}\}/g));
     }
+  }
 });

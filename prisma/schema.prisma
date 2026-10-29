@@ -381,7 +381,7 @@ model ListingDraft {
 
 model Notification {
   supportTicketId String?
-  supportTicket SupportTicket? @relation(fields:[supportTicketId],references:[id],onDelete:Restrict)
+  supportTicket SupportTicket? @relation(fields:[supportTicketId],references:[id],onDelete:Restrict,onUpdate:NoAction)
   @@index([supportTicketId])
   retentionRequestId String?
   retentionRequest RetentionReviewRequest? @relation(fields:[retentionRequestId],references:[id],onDelete:Restrict)
@@ -899,12 +899,12 @@ model HandoverRevision {
 
 model SupportTicket {
  ownerId String?
- owner User? @relation("SupportOwner",fields:[ownerId],references:[id],onDelete:Restrict)
+ owner User? @relation("SupportOwner",fields:[ownerId],references:[id],onDelete:Restrict,onUpdate:NoAction)
  assignments SupportAssignment[]
  notifications Notification[]
  id String @id @default(uuid())
  userId String
- user User @relation(fields:[userId], references:[id], onDelete:Restrict)
+ user User @relation(fields:[userId], references:[id], onDelete:Restrict,onUpdate:NoAction)
  subject String
  status String @default("OPEN")
  version Int @default(0)
@@ -918,9 +918,9 @@ model SupportEntry {
  reads SupportRead[]
  id String @id @default(uuid())
  ticketId String
- ticket SupportTicket @relation(fields:[ticketId],references:[id],onDelete:Restrict)
+ ticket SupportTicket @relation(fields:[ticketId],references:[id],onDelete:Restrict,onUpdate:NoAction)
  actorId String
- actor User @relation(fields:[actorId],references:[id],onDelete:Restrict)
+ actor User @relation(fields:[actorId],references:[id],onDelete:Restrict,onUpdate:NoAction)
  commandId String
  payload String
  body String
@@ -934,8 +934,8 @@ model SupportEntry {
 model SupportRead {
  entryId String
  userId String
- entry SupportEntry @relation(fields:[entryId],references:[id],onDelete:Restrict)
- user User @relation(fields:[userId],references:[id],onDelete:Restrict)
+ entry SupportEntry @relation(fields:[entryId],references:[id],onDelete:Restrict,onUpdate:NoAction)
+ user User @relation(fields:[userId],references:[id],onDelete:Restrict,onUpdate:NoAction)
  readAt DateTime @default(now())
  @@id([entryId,userId])
  @@index([userId])
@@ -943,9 +943,9 @@ model SupportRead {
 model SupportAssignment {
  id String @id @default(uuid())
  ticketId String
- ticket SupportTicket @relation(fields:[ticketId],references:[id],onDelete:Restrict)
+ ticket SupportTicket @relation(fields:[ticketId],references:[id],onDelete:Restrict,onUpdate:NoAction)
  actorId String
- actor User @relation("SupportAssignmentActor",fields:[actorId],references:[id],onDelete:Restrict)
+ actor User @relation("SupportAssignmentActor",fields:[actorId],references:[id],onDelete:Restrict,onUpdate:NoAction)
  commandId String
  payload String
  previousOwnerId String?
@@ -979,7 +979,7 @@ model RefundCaptureState {
 model RefundCommandState {
   key String @id
   captureId String
-  capture RefundCaptureState @relation(fields:[captureId],references:[id],onDelete:Restrict)
+  capture RefundCaptureState @relation(fields:[captureId],references:[id],onDelete:Restrict,onUpdate:NoAction)
   caseId String
   decisionVersion Int
   leaseToken String?
@@ -990,7 +990,7 @@ model RefundCommandState {
 model RefundStateEvent {
   id BigInt @id @default(autoincrement())
   captureId String
-  capture RefundCaptureState @relation(fields:[captureId],references:[id],onDelete:Restrict)
+  capture RefundCaptureState @relation(fields:[captureId],references:[id],onDelete:Restrict,onUpdate:NoAction)
   version Int
   kind String
   actorId String?
@@ -1002,9 +1002,9 @@ model RefundReceipt {
   scopeKey String
   refundRef String
   captureId String
-  capture RefundCaptureState @relation(fields:[captureId],references:[id],onDelete:Restrict)
+  capture RefundCaptureState @relation(fields:[captureId],references:[id],onDelete:Restrict,onUpdate:NoAction)
   commandKey String @unique
-  command RefundCommandState @relation(fields:[commandKey],references:[key],onDelete:Restrict)
+  command RefundCommandState @relation(fields:[commandKey],references:[key],onDelete:Restrict,onUpdate:NoAction)
   amountMinor Int
   currency String
   createdAt DateTime @default(now()) @db.Timestamptz
@@ -1013,14 +1013,14 @@ model RefundReceipt {
 
 model RefundCaptureBinding {
   captureId String @id
-  capture RefundCaptureState @relation(fields:[captureId],references:[id],onDelete:Restrict)
+  capture RefundCaptureState @relation(fields:[captureId],references:[id],onDelete:Restrict,onUpdate:NoAction)
   holdId String @unique
-  hold PaymentHold @relation(fields:[holdId],references:[id],onDelete:Restrict)
+  hold PaymentHold @relation(fields:[holdId],references:[id],onDelete:Restrict,onUpdate:NoAction)
 }
 model RefundCase {
   approvedVersion Int?
   previousCaseId String?
-  previousCase RefundCase? @relation("RefundReopen",fields:[previousCaseId],references:[id],onDelete:Restrict)
+  previousCase RefundCase? @relation("RefundReopen",fields:[previousCaseId],references:[id],onDelete:Restrict,onUpdate:NoAction)
   subsequentCases RefundCase[] @relation("RefundReopen")
   reviewBasis String?
   reviewRound Int @default(0)
@@ -1032,9 +1032,9 @@ model RefundCase {
   currency String
   id String @id
   captureId String
-  capture RefundCaptureState @relation(fields:[captureId],references:[id],onDelete:Restrict)
+  capture RefundCaptureState @relation(fields:[captureId],references:[id],onDelete:Restrict,onUpdate:NoAction)
   requesterId String
-  requester User @relation(fields:[requesterId],references:[id],onDelete:Restrict)
+  requester User @relation(fields:[requesterId],references:[id],onDelete:Restrict,onUpdate:NoAction)
   requestId String
   reason String
   status String @default("REQUESTED")
@@ -1048,9 +1048,9 @@ model RefundDecision {
   reviewRound Int @default(0)
   id String @id
   caseId String
-  case RefundCase @relation(fields:[caseId],references:[id],onDelete:Restrict)
+  case RefundCase @relation(fields:[caseId],references:[id],onDelete:Restrict,onUpdate:NoAction)
   reviewerId String
-  reviewer User @relation(fields:[reviewerId],references:[id],onDelete:Restrict)
+  reviewer User @relation(fields:[reviewerId],references:[id],onDelete:Restrict,onUpdate:NoAction)
   requestId String
   outcome String
   reason String
@@ -1064,9 +1064,9 @@ model RefundDecision {
 model RefundCaseActivity {
  id String @id
  caseId String
- case RefundCase @relation(fields:[caseId],references:[id],onDelete:Restrict)
+ case RefundCase @relation(fields:[caseId],references:[id],onDelete:Restrict,onUpdate:NoAction)
  actorId String
- actor User @relation(fields:[actorId],references:[id],onDelete:Restrict)
+ actor User @relation(fields:[actorId],references:[id],onDelete:Restrict,onUpdate:NoAction)
  requestId String
  action String
  reason String
@@ -1079,13 +1079,13 @@ model RefundOperationalBlock {
  id String @id
  scopeKey String
  captureId String?
- capture RefundCaptureState? @relation(fields:[captureId],references:[id],onDelete:Restrict)
+ capture RefundCaptureState? @relation(fields:[captureId],references:[id],onDelete:Restrict,onUpdate:NoAction)
  kind String
  openedBy String
- opener User @relation("RefundBlockOpener",fields:[openedBy],references:[id],onDelete:Restrict)
+ opener User @relation("RefundBlockOpener",fields:[openedBy],references:[id],onDelete:Restrict,onUpdate:NoAction)
  openedReason String
  resolvedBy String?
- resolver User? @relation("RefundBlockResolver",fields:[resolvedBy],references:[id],onDelete:Restrict)
+ resolver User? @relation("RefundBlockResolver",fields:[resolvedBy],references:[id],onDelete:Restrict,onUpdate:NoAction)
  resolvedReason String?
  openedAt DateTime @default(now()) @db.Timestamptz
  resolvedAt DateTime? @db.Timestamptz
@@ -1109,11 +1109,11 @@ model SyntheticEvidenceImport {
 model SyntheticEvidenceAttempt {
  id String @id
  actorId String
- actor User @relation(fields:[actorId],references:[id],onDelete:Restrict)
+ actor User @relation(fields:[actorId],references:[id],onDelete:Restrict,onUpdate:NoAction)
  requestId String
  inputHash String
  importId String
- import SyntheticEvidenceImport @relation(fields:[importId],references:[id],onDelete:Restrict)
+ import SyntheticEvidenceImport @relation(fields:[importId],references:[id],onDelete:Restrict,onUpdate:NoAction)
  createdAt DateTime @default(now()) @db.Timestamptz
  @@unique([actorId,requestId])
 }
@@ -1131,19 +1131,19 @@ model SyntheticEvidenceEvent {
 }
 model SyntheticEvidenceLink {
  importId String
- import SyntheticEvidenceImport @relation(fields:[importId],references:[id],onDelete:Restrict)
+ import SyntheticEvidenceImport @relation(fields:[importId],references:[id],onDelete:Restrict,onUpdate:NoAction)
  eventId String
- event SyntheticEvidenceEvent @relation(fields:[eventId],references:[id],onDelete:Restrict)
+ event SyntheticEvidenceEvent @relation(fields:[eventId],references:[id],onDelete:Restrict,onUpdate:NoAction)
  @@id([importId,eventId])
 }
 
 model SyntheticEvidenceMapping {
  eventId String @id
- event SyntheticEvidenceEvent @relation(fields:[eventId],references:[id],onDelete:Restrict)
+ event SyntheticEvidenceEvent @relation(fields:[eventId],references:[id],onDelete:Restrict,onUpdate:NoAction)
  targetKind String
  targetId String
  actorId String
- actor User @relation(fields:[actorId],references:[id],onDelete:Restrict)
+ actor User @relation(fields:[actorId],references:[id],onDelete:Restrict,onUpdate:NoAction)
  reason String
  createdAt DateTime @default(now()) @db.Timestamptz
  @@unique([targetKind,targetId])
