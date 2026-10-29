@@ -21,7 +21,7 @@ type Sale = {
   openDisputes: number;
   hold: { status: string; expiresAt: string };
 };
-export function Settlements() {
+export function Settlements({ recordId }: { recordId?: string } = {}) {
   const { t, money } = useLocale();
   const { data, loading, error, reload } = useResource<{
     settlements: Sale[];
@@ -30,7 +30,7 @@ export function Settlements() {
       createdAt: string;
       payload: { settlementId: string; action: string; note: string };
     }[];
-  }>('/api/settlements');
+  }>(recordId ? '/api/settlements?id=' + encodeURIComponent(recordId) : '/api/settlements');
   if (loading) return <Loading />;
   if (!data || error) return <ErrorState retry={reload} />;
   return (
@@ -52,6 +52,9 @@ export function Settlements() {
           </div>
           <p className="fine-print mt-3">
             {t('holds')}: <StatusBadge status={s.hold.status} />
+          </p>
+          <p className="mt-3">
+            <Link href={`/handover/${s.id}`}>{t('handoverTitle')}</Link>
           </p>
           {s.buyer &&
             ['AWAITING_CONFIRMATION', 'DEFAULT_REVIEW', 'PAYMENT_FAILED'].includes(s.status) &&

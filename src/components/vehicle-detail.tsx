@@ -1,5 +1,10 @@
 'use client';
 import Link from 'next/link';
+import { VehicleDataOrigin } from './vehicle-data-origin';
+import { ListingViewTracker } from './listing-statistics';
+import { ListingTrust } from './trust';
+import { localityText } from '../lib/vehicle-location';
+import { CompareButton } from './comparison-controls';
 import { SpecDetails } from './vehicle-spec-fields';
 import { PhotoCredit } from './photo-credit';
 import { GalleryPhoto } from './gallery-photo';
@@ -39,7 +44,22 @@ import { Input } from './ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from './ui/dialog';
 type History = { id: string; amount: number; createdAt: string };
 type Detail = { demo: boolean; vehicle: VehicleView; history: History[] };
-export function VehicleDetail({ id }: { id: string }) {
+export function VehicleDetail({ id, initial }: { id: string; initial?: Detail }) {
+  if (initial)
+    return (
+      <>
+        <ListingViewTracker
+          id={id}
+          eligible={
+            !initial.demo && !initial.vehicle.isSample && initial.vehicle.status === 'ACTIVE'
+          }
+        />
+        <DetailContent key={id} initial={initial} />
+      </>
+    );
+  return <LoadedDetail id={id} />;
+}
+function LoadedDetail({ id }: { id: string }) {
   const resource = useResource<Detail>(`/api/market/${encodeURIComponent(id)}`);
   if (resource.loading) return <Loading />;
   if (resource.error || !resource.data)
@@ -48,7 +68,7 @@ export function VehicleDetail({ id }: { id: string }) {
 }
 function DetailContent({ initial }: { initial: Detail }) {
   const { data: localMode } = useResource<{ enabled: boolean }>('/api/local-test');
-  const { t, money, number, date } = useLocale();
+  const { t, money, number, date, locale } = useLocale();
   const { status } = useSession();
   const [v, setVehicle] = useState(initial.vehicle);
   const [history, setHistory] = useState(initial.history);
@@ -184,7 +204,7 @@ function DetailContent({ initial }: { initial: Detail }) {
       {initial.demo && <DemoBanner />}
       {v.isSample && <div className="demo-banner">{t('sampleReadOnly')}</div>}
       <div className="container detail-page">
-        <Link href="/" className="back-link">
+        <Link href={`/?lang=${locale}`} className="back-link">
           <ArrowLeft size={15} />
           {t('backListings')}
         </Link>
@@ -194,12 +214,17 @@ function DetailContent({ initial }: { initial: Detail }) {
               <SellerBadge vehicle={v} />
               <span className="location">
                 <MapPin size={13} />
-                {v.canton}, CH
+                {localityText(v) ? `${localityText(v)} · ` : ''}
+                {v.canton}
               </span>
             </div>
+            <p className="fine-print">
+              {t(localityText(v) ? 'locationDeclared' : 'locationUnknown')}
+            </p>
             <h1>
               {v.make} <span>{v.model}</span>
             </h1>
+            <CompareButton id={v.id} name={`${v.make} ${v.model}`} />
             {v.saleCancelled && <p role="status">{t('saleCancelledNotice')}</p>}
             {v.status !== 'ACTIVE' && (
               <StatusBadge status={v.saleCancelled ? 'CANCELLED' : v.status} />
@@ -208,7 +233,7 @@ function DetailContent({ initial }: { initial: Detail }) {
               {vehicleYear(v) ?? t('unverified')} · {number(v.mileage)} km · {v.powerKw ?? '—'} kW
             </p>
           </div>
-          {!v.isSample && !initial.demo && <MfkBadge date={v.mfkDate} />}
+          {!v.isSample && !initial.demo && <MfkBadge date={v.mfkDate} status={v.mfkStatus} />}
         </div>
         <a href="#vehicle-price-offers" className="mobile-price-link">
           {t('priceOffers')}
@@ -267,6 +292,7 @@ function DetailContent({ initial }: { initial: Detail }) {
               </div>
             )}
             {initial.demo && <p className="notice">{t('demoDetails')}</p>}
+            <VehicleDataOrigin vehicle={{ ...v, isSample: v.isSample || initial.demo }} />
             <section className="panel">
               <h2>
                 <ShieldCheck size={21} />
@@ -283,7 +309,17 @@ function DetailContent({ initial }: { initial: Detail }) {
                   [t('capacity'), v.cubicCapacity ? `${number(v.cubicCapacity)} cm³` : '—'],
                   [t('stammnummer'), v.stammnummer],
                   [t('vin'), v.maskedVin],
-                  [t('inspection'), v.isSample || initial.demo ? t('unverified') : date(v.mfkDate)],
+                  [
+                    t('inspection'),
+                    v.isSample || initial.demo
+                      ? t('unverified')
+                      : v.mfkStatus === 'NEVER'
+                        ? t('mfkNever')
+                        : v.mfkDate && (!v.mfkStatus || v.mfkStatus === 'DATED')
+                          ? date(v.mfkDate)
+                          : t('mfkUnknown'),
+                  ],
+                  [t('modelYear'), v.modelYear == null ? t('notProvided') : String(v.modelYear)],
                   [
                     t('serviceHistory'),
                     v.isSample || initial.demo ? t('unverified') : t(v.serviceHistory as 'FULL'),
@@ -296,6 +332,9 @@ function DetailContent({ initial }: { initial: Detail }) {
                 ))}
               </dl>
               <SpecDetails vehicle={v} />
+              <h3>{t('damageDescription')}</h3>
+              <p className="description-text">{v.damageDescription || t('notProvided')}</p>
+              <p className="fine-print">{t('disclosureHint')}</p>
               <p className="fine-print">{t('inspectionNote')}</p>
             </section>
             <section className="panel">
@@ -306,6 +345,7 @@ function DetailContent({ initial }: { initial: Detail }) {
               <h3>{t('tireCondition')}</h3>
               <p>{v.tireCondition || t('notProvided')}</p>
             </section>
+            <ListingTrust vehicleId={v.id} isSample={v.isSample || initial.demo} />
             <section className="panel">
               <h2>{t('history')}</h2>
               {history.length === 0 ? (
@@ -450,6 +490,12 @@ function DetailContent({ initial }: { initial: Detail }) {
               <div className="seller-avatar">{v.sellerType === 'DEALER' ? 'H' : 'P'}</div>
               <div>
                 <h3>{t('seller')}</h3>
+                {v.dealerProfileId && (
+                  <Link href={`/dealers/${v.dealerProfileId}`}>{t('dealerPublicLink')}</Link>
+                )}
+                <p>
+                  <Link href={`/messages?vehicle=${v.id}`}>{t('chatContact')}</Link>
+                </p>
                 <SellerBadge vehicle={v} />
                 {v.verified && (
                   <p>

@@ -2,6 +2,7 @@ import { db } from './db';
 import { stripeGateway, type PaymentGateway } from './payments';
 import { queueRelease, recordCapture } from './settlement-state';
 import { blockingDisputes } from './disputes';
+import { notify } from './notifications';
 
 export async function closeAuction(vehicleId: string) {
   return db.$transaction(async (tx) => {
@@ -43,6 +44,18 @@ export async function closeAuction(vehicleId: string) {
       },
     });
     for (const hold of holds) await queueRelease(tx, hold.id);
+    const participants = await tx.bid.findMany({
+      where: { vehicleId },
+      distinct: ['userId'],
+      select: { userId: true },
+    });
+    await notify(tx, {
+      type: 'closed',
+      version: updated.version,
+      vehicle,
+      winnerId: winner?.userId,
+      participantIds: participants.map((bid) => bid.userId),
+    });
     await tx.outboxEvent.create({
       data: {
         kind: 'auction.updated',

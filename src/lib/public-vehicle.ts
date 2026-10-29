@@ -1,12 +1,27 @@
 import type { Prisma } from '../generated/prisma/client';
 import type { VehicleView } from './market-types';
 export const publicVehicleInclude = {
-  user: { select: { role: true, isIdentityVerified: true } },
+  user: {
+    select: {
+      role: true,
+      isIdentityVerified: true,
+      dealerProfile: { select: { userId: true, published: true } },
+    },
+  },
   _count: { select: { bids: true } },
 } satisfies Prisma.VehicleInclude;
 type Record = Prisma.VehicleGetPayload<{ include: typeof publicVehicleInclude }>;
 export function publicVehicle(v: Record): VehicleView {
   return {
+    dealerProfileId:
+      v.user.role === 'DEALER' && v.user.dealerProfile?.published
+        ? v.user.dealerProfile.userId
+        : null,
+    dataDeclaredAt: v.dataDeclaredAt?.toISOString() ?? null,
+    dataCorrectedAt: v.dataCorrectedAt?.toISOString() ?? null,
+    dataCorrectedFields: v.dataCorrectedFields,
+    city: v.city,
+    postalCode: v.postalCode,
     fuelType: v.fuelType as VehicleView['fuelType'],
     transmission: v.transmission as VehicleView['transmission'],
     bodyType: v.bodyType as VehicleView['bodyType'],
@@ -34,7 +49,10 @@ export function publicVehicle(v: Record): VehicleView {
     modelYear: v.modelYear,
     mileage: v.mileage,
     canton: v.canton,
-    mfkDate: v.mfkDate.toISOString(),
+    mfkDate: v.mfkDate?.toISOString() ?? null,
+    mfkStatus: v.mfkStatus as VehicleView['mfkStatus'],
+    damageDescription: v.damageDescription,
+    batteryHealth: v.batteryHealth,
     images: v.images,
     description: v.description,
     price: Number(

@@ -1,0 +1,72 @@
+{
+  "manifest": {
+    "version": 1,
+    "provenance": "synthetic",
+    "batchId": "synthetic-l11-batch",
+    "scope": {
+      "provider": "synthetic-provider",
+      "merchant": "synthetic-merchant",
+      "account": "synthetic-account",
+      "environment": "test",
+      "currency": "CHF"
+    },
+    "source": "provider",
+    "from": "2026-10-01T00:00:00.000Z",
+    "to": "2026-10-02T00:00:00.000Z",
+    "watermark": "2026-10-02T00:00:00.000Z",
+    "expectedPages": 2,
+    "expectedEvents": 2,
+    "openingBalanceMinor": "100",
+    "closingBalanceMinor": "100"
+  },
+  "pages": [
+    {
+      "batchId": "synthetic-l11-batch",
+      "scope": {
+        "provider": "synthetic-provider",
+        "merchant": "synthetic-merchant",
+        "account": "synthetic-account",
+        "environment": "test",
+        "currency": "CHF"
+      },
+      "number": 1,
+      "cursor": null,
+      "nextCursor": "next-page",
+      "events": [
+        {
+          "eventId": "event-capture",
+          "economicId": "booking-capture",
+          "kind": "CAPTURE",
+          "occurredAt": "2026-10-01T10:00:00.000Z",
+          "amountMinor": "3000",
+          "direction": "credit",
+          "currency": "CHF"
+        }
+      ]
+    },
+    {
+      "batchId": "synthetic-l11-batch",
+      "scope": {
+        "provider": "synthetic-provider",
+        "merchant": "synthetic-merchant",
+        "account": "synthetic-account",
+        "environment": "test",
+        "currency": "CHF"
+      },
+      "number": 2,
+      "cursor": "next-page",
+      "nextCursor": null,
+      "events": [
+        {
+          "eventId": "event-refund",
+          "economicId": "booking-refund",
+          "kind": "REFUND",
+          "occurredAt": "2026-10-01T11:00:00.000Z",
+          "amountMinor": "3000",
+          "direction": "debit",
+          "currency": "CHF"
+        }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { db } from './db';
+import { notify } from './notifications';
 export const openDisputeInput = z
   .object({
     settlementId: z.uuid(),
@@ -80,6 +81,13 @@ export async function reviewDispute(adminId: string, raw: unknown) {
         deliveredAt: new Date(),
         payload: { disputeId: input.id, adminId, resolution: input.resolution, note: input.note },
       },
+    });
+    await notify(tx, {
+      type: 'dispute',
+      disputeId: dispute.id,
+      resolution: input.resolution,
+      buyerId: dispute.settlement.bid.userId,
+      vehicle: dispute.settlement.vehicle,
     });
   });
 }

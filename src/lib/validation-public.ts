@@ -2,6 +2,7 @@ import type en from '../messages/en.json';
 type MessageKey = keyof typeof en;
 export const validationFields = {
   form: 'validationForm',
+  corrections: 'revisionChecklist',
   email: 'email',
   password: 'password',
   currentPassword: 'currentPassword',
@@ -12,10 +13,16 @@ export const validationFields = {
   model: 'model',
   mileage: 'mileage',
   canton: 'canton',
+  city: 'locationCity',
+  postalCode: 'locationPostalCode',
   stammnummer: 'stammnummer',
   vinChassis: 'vinFull',
   firstRegistration: 'registration',
   mfkDate: 'inspection',
+  mfkStatus: 'mfkStatus',
+  modelYear: 'modelYear',
+  damageDescription: 'damageDescription',
+  batteryHealth: 'batteryHealth',
   images: 'photos',
   description: 'description',
   tireCondition: 'tireCondition',
@@ -33,6 +40,8 @@ export const validationFields = {
 } as const satisfies Record<string, MessageKey>;
 export const validationKeys = [
   'validationInvalid',
+  'validationCity',
+  'validationPostalCode',
   'validationRequired',
   'validationEmail',
   'validationPhone',

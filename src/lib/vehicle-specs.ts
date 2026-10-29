@@ -21,7 +21,7 @@ export const specOptions = {
     'YELLOW',
     'OTHER',
   ],
-  accidentHistory: ['ACCIDENT_FREE', 'REPAIRED', 'DAMAGED'],
+  accidentHistory: ['ACCIDENT_FREE', 'REPAIRED', 'DAMAGED', 'UNKNOWN'],
   warranty: ['YES', 'NO'],
 } as const;
 export const specNumbers = {
@@ -29,6 +29,7 @@ export const specNumbers = {
   electricConsumption: [0, 200, 0.1, 'kWh/100 km'],
   co2Emissions: [0, 2000, 1, 'g/km'],
   rangeKm: [0, 2000, 1, 'km'],
+  batteryHealth: [0, 100, 0.1, '%'],
   batteryCapacity: [0, 500, 0.1, 'kWh'],
   seats: [1, 30, 1, ''],
   doors: [1, 8, 1, ''],
@@ -51,6 +52,7 @@ export type VehicleSpecs = {
   co2Emissions?: number | null;
   rangeKm?: number | null;
   batteryCapacity?: number | null;
+  batteryHealth?: number | null;
   seats?: number | null;
   doors?: number | null;
 };

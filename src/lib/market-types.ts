@@ -1,5 +1,12 @@
+import { matchesLocation } from './vehicle-location';
 import type { VehicleSpecs } from './vehicle-specs';
 export type VehicleView = VehicleSpecs & {
+  dealerProfileId?: string | null;
+  dataDeclaredAt?: string | null;
+  dataCorrectedAt?: string | null;
+  dataCorrectedFields?: string[];
+  city?: string | null;
+  postalCode?: string | null;
   saleCancelled?: boolean;
   isSample?: boolean;
   id: string;
@@ -9,7 +16,9 @@ export type VehicleView = VehicleSpecs & {
   modelYear?: number | null;
   mileage: number;
   canton: string;
-  mfkDate: string;
+  mfkDate: string | null;
+  mfkStatus?: 'DATED' | 'NEVER' | 'UNKNOWN';
+  damageDescription?: string | null;
   images: string[];
   description: string;
   price: number;
@@ -62,13 +71,16 @@ export function vehicleYear(v: Pick<VehicleView, 'firstRegistration' | 'modelYea
     v.modelYear ?? (v.firstRegistration ? new Date(v.firstRegistration).getUTCFullYear() : null)
   );
 }
-export function isMfkFresh(date: string, now = new Date()) {
+export function isMfkFresh(date: string | null, now = new Date()) {
+  if (!date) return false;
   const inspected = new Date(date);
   const threshold = new Date(now);
   threshold.setUTCFullYear(threshold.getUTCFullYear() - 1);
   return inspected <= now && inspected > threshold;
 }
 export type Filters = {
+  city?: string;
+  postalCode?: string;
   make?: string;
   model?: string;
   minPrice?: number;
@@ -96,14 +108,15 @@ export function filterVehicles(vehicles: VehicleView[], f: Filters, now = new Da
           .split(/\s+/)
           .every((token) => `${v.make} ${v.model}`.toLowerCase().includes(token)) &&
         (!f.canton || v.canton === f.canton) &&
+        matchesLocation(v, f) &&
         v.price <= f.price &&
         v.mileage <= f.mileage &&
         (!f.make || v.make === f.make) &&
         (!f.model || v.model === f.model) &&
         (f.minPrice === undefined || v.price >= f.minPrice) &&
         (f.minMileage === undefined || v.mileage >= f.minMileage) &&
-        (!f.yearFrom || (vehicleYear(v) !== null && vehicleYear(v)! >= f.yearFrom)) &&
-        (!f.yearTo || (vehicleYear(v) !== null && vehicleYear(v)! <= f.yearTo)) &&
+        (!f.yearFrom || (v.modelYear != null && v.modelYear >= f.yearFrom)) &&
+        (!f.yearTo || (v.modelYear != null && v.modelYear <= f.yearTo)) &&
         Object.entries(f.specs ?? {}).every(
           ([key, value]) => !value || v[key as keyof VehicleView] === value,
         ) &&
@@ -118,7 +131,8 @@ export function filterVehicles(vehicles: VehicleView[], f: Filters, now = new Da
           );
         }) &&
         (!f.privateOnly || v.sellerType === 'PRIVATE_USER') &&
-        (!f.mfk || (!v.isSample && isMfkFresh(v.mfkDate, now))),
+        (!f.mfk ||
+          (!v.isSample && (!v.mfkStatus || v.mfkStatus === 'DATED') && isMfkFresh(v.mfkDate, now))),
     )
     .sort((a, b) =>
       f.sort === 'priceAsc'

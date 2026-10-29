@@ -1,13 +1,16 @@
 'use client';
 import Link from 'next/link';
+import { ComparisonTray } from './comparison-controls';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
+import { requestSupportLeave } from '../lib/support-draft-guard';
 import { ArrowUpRight, Globe2, Menu, Plus, ShieldCheck, X } from 'lucide-react';
 import { useState } from 'react';
 import { useLocale, type Locale } from './providers';
 import { Button } from './ui/button';
 import { LocalTestBanner } from './local-test-banner';
 import { LegalBanner } from './legal-pages';
+import { NotificationBell } from './notifications';
 export function Shell({ children }: { children: React.ReactNode }) {
   const { t, locale, setLocale } = useLocale();
   const path = usePathname();
@@ -16,6 +19,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const links = [
     ['/', t('discover')],
     ['/dashboard', t('garage')],
+    ...(status === 'authenticated' ? [['/drafts', t('draftsTitle')]] : []),
+    ...(status === 'authenticated'
+      ? [
+          ['/messages', t('chatTitle')],
+          ['/support', t('spTitle')],
+          ['/refunds', t('rfTitle')],
+          ['/trust', t('trustCenter')],
+        ]
+      : []),
     ['/help', t('help')],
     ...(status === 'authenticated' ? [['/security', t('accountSecurity')]] : []),
   ];
@@ -26,7 +38,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </a>
       <header className="site-header">
         <div className="container header-inner">
-          <Link href="/" className="brand" aria-label="AutoVeri.ch">
+          <Link href={`/?lang=${locale}`} className="brand" aria-label="AutoVeri.ch">
             <span className="brand-mark">
               A<span />
             </span>
@@ -34,12 +46,17 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </Link>
           <nav className="desktop-nav" aria-label={t('menu')}>
             {links.map(([href, label]) => (
-              <Link key={href} href={href} className={path === href ? 'active' : ''}>
+              <Link
+                key={href}
+                href={href === '/' ? `/?lang=${locale}` : href}
+                className={path === href ? 'active' : ''}
+              >
                 {label}
               </Link>
             ))}
           </nav>
           <div className="header-actions">
+            <NotificationBell />
             <label className="language">
               <Globe2 size={16} />
               <span className="sr-only">{t('language')}</span>
@@ -55,7 +72,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
               <Button
                 variant="ghost"
                 className="desktop-login"
-                onClick={() => void signOut({ callbackUrl: '/' })}
+                onClick={() => {
+                  requestSupportLeave(() => void signOut({ callbackUrl: '/' }));
+                }}
               >
                 {t('logout')}
               </Button>
@@ -89,7 +108,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
               ['/sell', t('sell')],
               ...(status === 'authenticated' ? [] : [['/login', t('login')]]),
             ].map(([href, label]) => (
-              <Link key={href} href={href} onClick={() => setOpen(false)}>
+              <Link
+                key={href}
+                href={href === '/' ? `/?lang=${locale}` : href}
+                onClick={() => setOpen(false)}
+              >
                 {label}
               </Link>
             ))}
@@ -98,7 +121,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 variant="ghost"
                 onClick={() => {
                   setOpen(false);
-                  void signOut({ callbackUrl: '/' });
+                  requestSupportLeave(() => void signOut({ callbackUrl: '/' }));
                 }}
               >
                 {t('logout')}
@@ -109,12 +132,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </header>
       <LocalTestBanner />
       <LegalBanner />
+      <ComparisonTray />
       <main id="main">{children}</main>
       <footer className="site-footer">
         <div className="container">
           <div className="footer-top">
             <div>
-              <Link href="/" className="brand">
+              <Link href={`/?lang=${locale}`} className="brand">
                 AutoVeri<span className="brand-ch">.ch</span>
               </Link>
               <p>{t('footerText')}</p>
@@ -123,6 +147,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               <Link href="/privacy">{t('privacyTitle')}</Link>
               <Link href="/terms">{t('termsTitle')}</Link>
               <Link href="/contact">{t('contactTitle')}</Link>
+              <Link href="/install">{t('pwaTitle')}</Link>
               <Link href="/help">
                 {t('help')}
                 <ArrowUpRight size={14} />
@@ -131,7 +156,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 {t('photoCredits')}
                 <ArrowUpRight size={14} />
               </Link>
-              <Link href="/">
+              <Link href={`/?lang=${locale}`}>
                 {t('discover')}
                 <ArrowUpRight size={14} />
               </Link>

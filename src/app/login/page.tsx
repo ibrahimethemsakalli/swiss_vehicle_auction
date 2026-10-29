@@ -37,7 +37,7 @@ export default function Login() {
               });
               if (result?.ok) {
                 const next = new URLSearchParams(window.location.search).get('next');
-                router.push(next === '/sell' ? '/sell' : '/dashboard');
+                router.push(next === '/sell' || next === '/local-proxy' ? next : '/dashboard');
                 router.refresh();
               } else setError(true);
             } catch {

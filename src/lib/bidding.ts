@@ -5,6 +5,7 @@ import { auctionEndAfterBid } from './auction-rules';
 import { syncHold, type PaymentGateway, stripeGateway } from './payments';
 import { queueRelease } from './settlement-state';
 import { requireCurrentLegal } from './legal';
+import { notify } from './notifications';
 export const bidInput = z
   .object({
     vehicleId: z.uuid(),
@@ -88,6 +89,8 @@ export async function placeBid(
       for (const old of oldBids) {
         await tx.bid.update({ where: { id: old.id }, data: { status: 'OUTBID' } });
         await queueRelease(tx, old.holdId);
+        if (old.userId !== userId)
+          await notify(tx, { type: 'outbid', bidId: old.id, userId: old.userId, vehicle });
       }
       const bid = await tx.bid.create({
         data: {

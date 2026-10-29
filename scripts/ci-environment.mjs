@@ -10,6 +10,8 @@ export function ciEnvironment(source = process.env, databaseUrl = '') {
   Object.assign(env, {
     CI: 'true',
     CI_BUILD: 'false',
+    PUBLIC_SITE_URL: '',
+    SEO_INDEXING_ENABLED: 'false',
     NEXT_TELEMETRY_DISABLED: '1',
     DATABASE_URL: databaseUrl,
     TEST_DATABASE_URL: databaseUrl,

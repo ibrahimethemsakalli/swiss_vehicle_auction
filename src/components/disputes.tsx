@@ -66,7 +66,7 @@ export function DisputeForm({ settlementId }: { settlementId: string }) {
     </details>
   );
 }
-export function Disputes() {
+export function Disputes({ recordId }: { recordId?: string } = {}) {
   const { t } = useLocale();
   const r = useResource<{
     disputes: {
@@ -79,7 +79,7 @@ export function Disputes() {
       resolutionNote: string | null;
       canReview: boolean;
     }[];
-  }>('/api/disputes');
+  }>(recordId ? '/api/disputes?id=' + encodeURIComponent(recordId) : '/api/disputes');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   if (r.loading) return <Loading />;

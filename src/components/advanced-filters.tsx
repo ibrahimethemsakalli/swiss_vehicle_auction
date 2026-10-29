@@ -52,6 +52,28 @@ export function AdvancedFilters({
   return (
     <div className="advanced-fields">
       <label className="form-label">
+        {t('locationCityFilter')}
+        <input
+          className="field"
+          maxLength={80}
+          value={filters.city ?? ''}
+          onChange={(e) => change({ ...filters, city: e.target.value })}
+        />
+      </label>
+      <label className="form-label">
+        {t('locationPostalFilter')}
+        <input
+          className="field"
+          inputMode="numeric"
+          maxLength={4}
+          value={filters.postalCode ?? ''}
+          onChange={(e) =>
+            change({ ...filters, postalCode: e.target.value.replace(/[^0-9]/g, '').slice(0, 4) })
+          }
+        />
+      </label>
+      <p className="fine-print">{t('locationFilterHint')}</p>
+      <label className="form-label">
         {t('make')}
         <select
           className="field"
@@ -102,6 +124,31 @@ export function AdvancedFilters({
       <details>
         <summary>{t('advancedFilters')}</summary>
         <div className="advanced-fields">
+          <label className="form-label">
+            {t('locationCityFilter')}
+            <input
+              className="field"
+              maxLength={80}
+              value={filters.city ?? ''}
+              onChange={(e) => change({ ...filters, city: e.target.value })}
+            />
+          </label>
+          <label className="form-label">
+            {t('locationPostalFilter')}
+            <input
+              className="field"
+              inputMode="numeric"
+              maxLength={4}
+              value={filters.postalCode ?? ''}
+              onChange={(e) =>
+                change({
+                  ...filters,
+                  postalCode: e.target.value.replace(/[^0-9]/g, '').slice(0, 4),
+                })
+              }
+            />
+          </label>
+          <p className="fine-print">{t('locationFilterHint')}</p>
           {Object.entries(specOptions)
             .sort(([a], [b]) => {
               const priority: Record<string, number> = {

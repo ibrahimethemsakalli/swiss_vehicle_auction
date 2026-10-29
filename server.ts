@@ -11,8 +11,18 @@ import { closeDueAuctions, processCaptures } from './src/lib/settlement';
 import { expireOffers } from './src/lib/offers';
 import { localPaymentsEnabled } from './src/lib/local-payment';
 import { cleanupMedia } from './src/lib/media';
+import { cleanupListingViews } from './src/lib/listing-statistics';
 import { WorkerMonitor } from './src/lib/worker-monitor';
+import { notifySearchMatches } from './src/lib/saved-searches';
+import { notifyHoldRenewals } from './src/lib/notifications';
+import { notifyAppointmentReminders } from './src/lib/appointment-reminders';
+import { sweepLocalProxy } from './src/lib/local-proxy-lifecycle';
+import { remindRefundInformation } from './src/lib/refund-notifications';
+import { refundPool } from './src/lib/refund-service';
+import { enforceProductionLaunch } from './src/lib/launch-gate';
+import { readLaunchDatabase } from './src/lib/launch-database';
 async function main() {
+  await enforceProductionLaunch(process.env, () => readLaunchDatabase(db, process.env));
   const monitor = new WorkerMonitor();
   process.env.OPS_INSTANCE_ID = monitor.state.instanceId;
   await monitor.persist();
@@ -45,7 +55,30 @@ async function main() {
     const result = await cleanupMedia({ apply: true });
     if (result.failed) throw new Error('MEDIA_CLEANUP_RETRY');
   });
+  schedule('notifications.searches', 60000, 120000, () => notifySearchMatches(db));
+  schedule('statistics.cleanup', 3600000, 30000, () => cleanupListingViews(db));
+  schedule('notifications.renewal', 60000, 30000, () => notifyHoldRenewals(db));
+  schedule('notifications.appointments', 60000, 30000, () => notifyAppointmentReminders(db));
+  schedule(
+    'refund.information-reminders',
+    60000,
+    30000,
+    () => remindRefundInformation(refundPool()),
+    workersEnabled &&
+      process.env.LOCAL_REFUND_POLICY_WORKER === 'true' &&
+      localPaymentsEnabled() &&
+      ['development', 'test'].includes(process.env.NODE_ENV ?? ''),
+  );
   const close = monitor.register('auction.close', 15000, 120000, workersEnabled);
+  schedule(
+    'local-proxy.lifecycle',
+    15000,
+    120000,
+    () => sweepLocalProxy(db),
+    workersEnabled &&
+      process.env.LOCAL_PROXY_ENGINE === 'true' &&
+      ['development', 'test'].includes(process.env.NODE_ENV ?? ''),
+  );
   const offers = monitor.register('offers.expire', 15000, 120000, workersEnabled);
   // Preserve the existing serial business-worker ordering; track failures independently.
   const paymentsEnabled =
@@ -169,7 +202,11 @@ async function main() {
     console.log(`Local: http://127.0.0.1:${process.env.PORT ?? 3000}`),
   );
 }
-main().catch(() => {
-  console.error('Server startup failed');
+main().catch((error) => {
+  console.error(
+    error instanceof Error && error.message.startsWith('LAUNCH_BLOCKED:')
+      ? error.message
+      : 'Server startup failed',
+  );
   process.exit(1);
 });

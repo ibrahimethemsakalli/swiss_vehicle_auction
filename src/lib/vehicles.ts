@@ -1,12 +1,17 @@
 import { z } from 'zod';
+import { declarationStamp } from './vehicle-data-origin';
+import { recordRevision } from './listing-revisions';
+import { locationFields } from './vehicle-location';
 import { specOptions, equipmentOptions } from './vehicle-specs';
 import { db } from './db';
 import { sevenDaysFrom } from './auction-rules';
 import { filenameFromPhotoUrl, PHOTO_LIMITS } from './photo-processing';
 import { requireCurrentLegal } from './legal';
+import { inspectionFields, inspectMfk } from './vehicle-disclosures';
 import { pastDateInput } from './validation-inputs';
 export const vehicleInput = z
   .object({
+    ...locationFields,
     fuelType: z.enum(specOptions.fuelType).optional(),
     transmission: z.enum(specOptions.transmission).optional(),
     bodyType: z.enum(specOptions.bodyType).optional(),
@@ -62,7 +67,16 @@ export const vehicleInput = z
       'GE',
       'JU',
     ]),
-    mfkDate: pastDateInput,
+    ...inspectionFields,
+    modelYear: z
+      .number()
+      .int()
+      .min(1900)
+      .max(new Date().getUTCFullYear() + 1)
+      .nullable()
+      .optional(),
+    damageDescription: z.string().trim().max(2000).nullable().optional(),
+    batteryHealth: z.number().min(0).max(100).nullable().optional(),
     serviceHistory: z.enum(['FULL', 'PARTIAL', 'NONE']),
     tireCondition: z.string().min(1).max(200),
     description: z.string().max(5000),
@@ -91,7 +105,14 @@ export const vehicleInput = z
       .regex(/^\d{1,9}(\.\d{1,2})?$/)
       .optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((v, ctx) => {
+    inspectMfk(v, ctx);
+    if (['DAMAGED', 'REPAIRED'].includes(v.accidentHistory ?? '') && !v.damageDescription?.trim())
+      ctx.addIssue({ code: 'custom', path: ['damageDescription'], message: 'validationRequired' });
+    if (v.batteryHealth != null && !['ELECTRIC', 'PLUGIN_HYBRID'].includes(v.fuelType ?? ''))
+      ctx.addIssue({ code: 'custom', path: ['batteryHealth'], message: 'validationInvalid' });
+  });
 export async function createVehicle(id: string, raw: unknown) {
   const user = await db.user.findUniqueOrThrow({ where: { id } });
   if (
@@ -132,6 +153,7 @@ export async function createVehicle(id: string, raw: unknown) {
         ownerId: id,
         status: 'READY',
         vehicleId: null,
+        draftId: null,
         createdAt: { gte: new Date(Date.now() - PHOTO_LIMITS.orphanAgeMs) },
       },
     });
@@ -139,6 +161,7 @@ export async function createVehicle(id: string, raw: unknown) {
     const created = await tx.vehicle.create({
       data: {
         ...input,
+        ...declarationStamp(now),
         legalAcceptanceId: legal?.id,
         userId: id,
         isVerifiedPrivate: user.role === 'PRIVATE_USER',
@@ -150,6 +173,7 @@ export async function createVehicle(id: string, raw: unknown) {
       where: { id: { in: photos.map((p) => p.id) } },
       data: { vehicleId: created.id },
     });
+    await recordRevision(tx, created, 'SUBMITTED');
     return created;
   });
   return { id: vehicle.id, status: vehicle.status };

@@ -1,5 +1,11 @@
 'use client';
 import Link from 'next/link';
+import { localityText } from '../lib/vehicle-location';
+import { CompareButton } from './comparison-controls';
+import { useSearchState } from './use-search-state';
+import { SavedSearches } from './saved-searches';
+import { defaultFilters } from '../lib/search-state';
+import { useFavorites } from './use-favorites';
 import { AdvancedFilters } from './advanced-filters';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
@@ -36,15 +42,7 @@ import {
   type Filters,
   type VehicleView,
 } from '../lib/market-types';
-const initial: Filters = {
-  query: '',
-  canton: '',
-  price: Number.MAX_SAFE_INTEGER,
-  mileage: Number.MAX_SAFE_INTEGER,
-  privateOnly: true,
-  mfk: false,
-  sort: 'ending',
-};
+const initial = defaultFilters;
 export function Marketplace() {
   const filterPanel = useRef<HTMLElement>(null);
   const resultsPanel = useRef<HTMLDivElement>(null);
@@ -55,13 +53,12 @@ export function Marketplace() {
       resultsPanel.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
     });
   };
-  const { t, money, number } = useLocale();
+  const { t, money, number, locale } = useLocale();
   const { data: localMode } = useResource<{ enabled: boolean }>('/api/local-test');
   const [updatesPaused, setUpdatesPaused] = useState(false);
   const paused = !!localMode?.enabled && updatesPaused;
-  const [filters, setFilters] = useState(initial);
-  const [page, setPage] = useState(1);
-  const [onlySaved, setOnlySaved] = useState(false);
+  const { filters, page, onlySaved, change } = useSearchState();
+  const setOnlySaved = (onlySaved: boolean) => change({ onlySaved, page: 1 });
   const [searchUrl, setSearchUrl] = useState('/api/market');
   useEffect(() => {
     if (onlySaved) return;
@@ -75,8 +72,7 @@ export function Marketplace() {
     return () => clearTimeout(timer);
   }, [filters, page, onlySaved]);
   const changeFilters = (next: Filters) => {
-    setFilters(next);
-    setPage(1);
+    change({ filters: next, page: 1 });
   };
   const { data, error, loading, reload } = useResource<{
     demo: boolean;
@@ -95,24 +91,13 @@ export function Marketplace() {
     const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
   }, []);
-  const [favorites, setFavorites] = useState<string[]>([]);
+  const favoriteState = useFavorites();
+  const favorites = favoriteState.ids;
+  const save = favoriteState.toggle;
   const [savedVehicles, setSavedVehicles] = useState<VehicleView[]>([]);
   const [savedLoading, setSavedLoading] = useState(false);
   const [savedError, setSavedError] = useState(false);
   const [mobileFilters, setMobileFilters] = useState(false);
-  useEffect(() => {
-    try {
-      const parsed = JSON.parse(localStorage.getItem('autoveri-saved') ?? '[]');
-      if (Array.isArray(parsed)) setFavorites(parsed.filter((x) => typeof x === 'string'));
-    } catch {}
-  }, []);
-  const save = (id: string) => {
-    const next = favorites.includes(id) ? favorites.filter((x) => x !== id) : [...favorites, id];
-    setFavorites(next);
-    try {
-      localStorage.setItem('autoveri-saved', JSON.stringify(next));
-    } catch {}
-  };
   useEffect(() => {
     if (!onlySaved || !data || paused) return;
     const controller = new AbortController();
@@ -313,6 +298,43 @@ export function Marketplace() {
             </button>
           </div>
         </div>
+        <SavedSearches
+          filters={filters}
+          apply={(filters) => change({ filters, page: 1, onlySaved: false })}
+        />
+        <div className="favorite-sync">
+          <p className="fine-print">
+            {t(favoriteState.account ? 'favoriteAccount' : 'favoriteGuest')}
+          </p>
+          {favoriteState.account && favoriteState.guests.length > 0 && (
+            <div className="notice">
+              <p>{t('favoriteMergeHint', { count: favoriteState.guests.length })}</p>
+              <Button disabled={favoriteState.busy} onClick={favoriteState.merge}>
+                {t('favoriteMerge')}
+              </Button>
+            </div>
+          )}
+          {favoriteState.merged !== null && (
+            <p role="status">{t('favoriteMerged', { count: favoriteState.merged })}</p>
+          )}
+          {favoriteState.error && (
+            <p role="alert">
+              {t(favoriteState.error === 'favoriteLimit' ? 'favoriteLimit' : 'favoriteFailed')}{' '}
+              <Button variant="outline" onClick={() => void favoriteState.refresh()}>
+                {t('chatRefresh')}
+              </Button>
+            </p>
+          )}
+          {onlySaved &&
+            favoriteState.unavailable.map((id) => (
+              <div key={id} className="panel draft-row">
+                <p>{t('favoriteUnavailable')}</p>
+                <Button disabled={favoriteState.busy} onClick={() => save(id)}>
+                  {t('favoriteRemove')}
+                </Button>
+              </div>
+            ))}
+        </div>
         <div className="market-layout">
           <aside
             id="vehicle-filters"
@@ -466,7 +488,7 @@ export function Marketplace() {
                     <article className="vehicle-card" key={v.id}>
                       <div className="card-photo">
                         <Link
-                          href={`/vehicles/${v.id}`}
+                          href={`/vehicles/${v.id}?lang=${locale}`}
                           aria-label={`${t('view')}: ${v.make} ${v.model}`}
                         >
                           <VehicleImage
@@ -475,8 +497,9 @@ export function Marketplace() {
                             loading="lazy"
                           />
                         </Link>
-                        {!v.isSample && <MfkBadge date={v.mfkDate} />}
+                        {!v.isSample && <MfkBadge date={v.mfkDate} status={v.mfkStatus} />}
                         <button
+                          disabled={favoriteState.busy}
                           className={`favorite-button ${favorites.includes(v.id) ? 'is-saved' : ''}`}
                           aria-label={`${t(favorites.includes(v.id) ? 'saved' : 'save')}: ${v.make} ${v.model}`}
                           aria-pressed={favorites.includes(v.id)}
@@ -490,12 +513,13 @@ export function Marketplace() {
                       </div>
                       <div className="card-content">
                         <SellerBadge vehicle={v} />
+                        <CompareButton id={v.id} name={`${v.make} ${v.model}`} />
                         {v.saleCancelled && (
                           <p className="mt-2">
                             <StatusBadge status="CANCELLED" />
                           </p>
                         )}
-                        <Link href={`/vehicles/${v.id}`} className="card-title">
+                        <Link href={`/vehicles/${v.id}?lang=${locale}`} className="card-title">
                           {v.make} {v.model}
                         </Link>
                         <p className="card-specs">
@@ -506,7 +530,8 @@ export function Marketplace() {
                         </p>
                         <p className="card-location">
                           <MapPin size={12} />
-                          {v.canton}, CH
+                          {localityText(v) ? `${localityText(v)} · ` : ''}
+                          {v.canton}
                         </p>
                         <p className="card-specs">
                           {v.fuelType && t(v.fuelType)}
@@ -553,7 +578,10 @@ export function Marketplace() {
                           ) : (
                             <Countdown end={v.end} />
                           )}
-                          <Link href={`/vehicles/${v.id}`} aria-label={`${t('view')}: ${v.make}`}>
+                          <Link
+                            href={`/vehicles/${v.id}?lang=${locale}`}
+                            aria-label={`${t('view')}: ${v.make}`}
+                          >
                             <ArrowUpRight size={19} />
                           </Link>
                         </div>
@@ -568,7 +596,7 @@ export function Marketplace() {
                 <Button
                   variant="outline"
                   disabled={page === 1 || loading}
-                  onClick={() => setPage((p) => p - 1)}
+                  onClick={() => change({ page: page - 1 })}
                 >
                   {t('back')}
                 </Button>
@@ -578,7 +606,7 @@ export function Marketplace() {
                 <Button
                   variant="outline"
                   disabled={page * 24 >= (data?.total ?? 0) || loading}
-                  onClick={() => setPage((p) => p + 1)}
+                  onClick={() => change({ page: page + 1 })}
                 >
                   {t('next')}
                 </Button>

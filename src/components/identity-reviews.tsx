@@ -4,7 +4,7 @@ import { useLocale } from './providers';
 import { useResource, Loading, ErrorState, EmptyState } from './common';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
-export function IdentityReviews() {
+export function IdentityReviews({ recordId }: { recordId?: string } = {}) {
   const { t } = useLocale();
   const resource = useResource<{
     users: {
@@ -14,7 +14,9 @@ export function IdentityReviews() {
       companyName: string | null;
       handelsregisterNr: string | null;
     }[];
-  }>('/api/admin/identities');
+  }>(
+    recordId ? '/api/admin/identities?id=' + encodeURIComponent(recordId) : '/api/admin/identities',
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   if (resource.loading) return <Loading />;

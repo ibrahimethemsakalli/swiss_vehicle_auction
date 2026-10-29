@@ -68,3 +68,5 @@ Sonrasında `readyForPublication=true` ve `pnpm legal:publish VERSION --reviewed
 - [SECO: satın alma ve sözleşme öncesi bilgiler](https://www.seco.admin.ch/de/vor-dem-kauf-und-vertragsabschluss)
 
 Bu kaynaklar hangi bilgilerin netleştirilmesi gerektiğine rehberlik etti. İşletmenin doğrulanması ve kesin koşulların incelenmesi yerine geçmez.
+
+PM-26B güncellemesi (28 Ekim 2026): destek/iade ve sınırlı saklama tercihleri ürün sahibi tarafından onaylandı. [Dört dil taslaklar ve koruma planı](RETENTION_PROTECTION_PLAN.md) ayrı docs dosyalarıdır; bu belgedeki eski genel politika belirsizliği notları için güncel karar kaynağı GO_LIVE_MATRIX.md'dir. İşlem ve uyuşmazlık süreleri hâlâ belirsiz; uygulamanın legal-copy/profile dosyaları ve etkin yayın değişmedi.

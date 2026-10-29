@@ -62,7 +62,7 @@ export async function consumeChallenge(
   if (!token || token.length > 128) throw new Error('INVALID_CREDENTIALS');
   await rateLimit(`challenge:check:${purpose}:${userId}`, 5, 900);
   const count =
-    await client.$executeRaw`DELETE FROM "AccountChallenge" WHERE "userId"=${userId} AND purpose=${purpose} AND "tokenHash"=${challengeHash(token)} AND "expiresAt">NOW()`;
+    await client.$executeRaw`DELETE FROM "AccountChallenge" WHERE "userId"=${userId} AND purpose=${purpose} AND "tokenHash"=${challengeHash(token)} AND "expiresAt">(NOW() AT TIME ZONE 'UTC')`;
   if (count !== 1) throw new Error('INVALID_CREDENTIALS');
 }
 export async function requestAccountMessage(

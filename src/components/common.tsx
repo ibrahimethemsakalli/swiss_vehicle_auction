@@ -91,9 +91,9 @@ export function SellerBadge({ vehicle }: { vehicle: VehicleView }) {
     </span>
   );
 }
-export function MfkBadge({ date }: { date: string }) {
+export function MfkBadge({ date, status }: { date: string | null; status?: string }) {
   const { t } = useLocale();
-  return isMfkFresh(date) ? (
+  return (!status || status === 'DATED') && isMfkFresh(date) ? (
     <span className="mfk-badge">
       <ShieldCheck size={12} />
       {t('fresh')}

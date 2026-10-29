@@ -17,7 +17,7 @@ test('technical filters combine ranges, brand/model and unknown values without c
   const cars = demoVehicles().slice(0, 3);
   Object.assign(cars[0], {
     firstRegistration: '2018-06-01',
-    modelYear: null,
+    modelYear: 2018,
     price: 58900,
     fuelType: 'PETROL',
     fuelConsumption: 6.5,

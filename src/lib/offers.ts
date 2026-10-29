@@ -1,4 +1,5 @@
 import { Prisma } from '../generated/prisma/client';
+import { notify } from './notifications';
 import { db } from './db';
 import { bidInput } from './bidding';
 import { syncHold, stripeGateway, type PaymentGateway } from './payments';
@@ -134,6 +135,12 @@ export async function decideOffer(
         throw new Error('VERIFICATION_REQUIRED');
       await tx.bid.update({ where: { id: bidId }, data: { status: 'WON' } });
       await tx.settlement.create({ data: { vehicleId: offer.vehicleId, bidId } });
+      await notify(tx, {
+        type: 'offerAccepted',
+        bidId,
+        buyerId: offer.userId,
+        vehicle: offer.vehicle,
+      });
       await tx.vehicle.update({
         where: { id: offer.vehicleId },
         data: { status: 'EXPIRED', currentPrice: offer.amount, version: { increment: 1 } },

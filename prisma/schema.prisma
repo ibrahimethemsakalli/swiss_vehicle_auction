@@ -8,6 +8,153 @@ datasource db {
   provider = "postgresql"
 }
 
+// PM-25D isolated local fixtures. No relation to production users, bids or payments.
+model LocalProxyAuction {
+  capture LocalProxyCapture?
+  status LocalProxyAuctionStatus @default(OPEN)
+  winnerId String?
+  closedAt DateTime?
+  cancelledAt DateTime?
+  room LocalProxyRoom?
+  id String @id @default(uuid())
+  sellerId String
+  buyerIds String[]
+  startCents BigInt
+  incrementCents BigInt
+  priceCents BigInt?
+  leaderId String?
+  startsAt DateTime
+  endsAt DateTime
+  version Int @default(0)
+  limits LocalProxyLimit[]
+  holds LocalProxyHold[]
+  commands LocalProxyCommand[]
+  events LocalProxyEvent[]
+  @@index([status,endsAt])
+}
+
+enum LocalProxyAuctionStatus {
+  COMPLETED
+  OPEN
+  WON
+  NO_BIDS
+  REVIEW
+  CANCELLED
+}
+
+model LocalProxyRoom {
+  auctionId String @id
+  auction LocalProxyAuction @relation(fields:[auctionId],references:[id],onDelete:Cascade)
+  creatorUserId String
+  requestId String
+  createdAt DateTime @default(now())
+  members LocalProxyMember[]
+  @@unique([creatorUserId,requestId])
+}
+
+model LocalProxyMember {
+  auctionId String
+  room LocalProxyRoom @relation(fields:[auctionId],references:[auctionId],onDelete:Cascade)
+  userId String
+  actorId String
+  @@id([auctionId,userId])
+  @@unique([auctionId,actorId])
+  @@index([userId])
+}
+
+enum LocalProxyHoldStatus {
+  CAPTURED
+  AUTHORIZED
+  RELEASED
+}
+
+model LocalProxyHold {
+  capture LocalProxyCapture?
+  id String @id @default(uuid())
+  auctionId String
+  auction LocalProxyAuction @relation(fields:[auctionId],references:[id],onDelete:Cascade)
+  ownerId String
+  amountCents Int @default(3000)
+  currency String @default("CHF")
+  gateway String @default("local-proxy")
+  status LocalProxyHoldStatus @default(AUTHORIZED)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  releasedAt DateTime?
+  limit LocalProxyLimit?
+  @@index([auctionId,ownerId])
+}
+
+model LocalProxyCapture {
+  refundCase LocalProxyRefundCase?
+  auctionId String @id
+  auction LocalProxyAuction @relation(fields:[auctionId],references:[id],onDelete:Restrict)
+  holdId String @unique
+  hold LocalProxyHold @relation(fields:[holdId],references:[id],onDelete:Restrict)
+  amountCents Int @default(3000)
+  currency String @default("CHF")
+  capturedAt DateTime @default(now())
+}
+
+enum LocalProxyRefundStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model LocalProxyRefundCase {
+  auctionId String @id
+  capture LocalProxyCapture @relation(fields:[auctionId],references:[auctionId],onDelete:Restrict)
+  requestedBy String
+  reason String
+  requestedAt DateTime @default(now())
+  status LocalProxyRefundStatus @default(PENDING)
+  decisionNote String?
+  reviewedBy String?
+  reviewedAt DateTime?
+  refund LocalProxyRefund?
+}
+
+model LocalProxyRefund {
+  auctionId String @id
+  refundCase LocalProxyRefundCase @relation(fields:[auctionId],references:[auctionId],onDelete:Restrict)
+  amountCents Int
+  currency String
+  refundedAt DateTime @default(now())
+}
+
+model LocalProxyLimit {
+  auctionId String
+  auction LocalProxyAuction @relation(fields:[auctionId],references:[id],onDelete:Cascade)
+  ownerId String
+  maximumCents BigInt
+  holdId String @unique
+  hold LocalProxyHold @relation(fields:[holdId],references:[id],onDelete:Restrict)
+  updatedAt DateTime @updatedAt
+  @@id([auctionId,ownerId])
+}
+
+model LocalProxyCommand {
+  auctionId String
+  auction LocalProxyAuction @relation(fields:[auctionId],references:[id],onDelete:Cascade)
+  ownerId String
+  requestId String
+  fingerprint String
+  result Json
+  createdAt DateTime @default(now())
+  @@id([auctionId,ownerId,requestId])
+}
+
+model LocalProxyEvent {
+  id String @id @default(uuid())
+  auctionId String
+  auction LocalProxyAuction @relation(fields:[auctionId],references:[id],onDelete:Cascade)
+  version Int
+  payload Json
+  createdAt DateTime @default(now())
+  @@unique([auctionId,version])
+}
+
 enum Role {
   PRIVATE_USER
   DEALER
@@ -22,6 +169,7 @@ enum ListingType {
 enum VehicleStatus {
   DRAFT
   PENDING_VERIFICATION
+  REJECTED
   ACTIVE
   SOLD
   EXPIRED
@@ -54,6 +202,31 @@ enum HoldStatus {
 }
 
 model User {
+ syntheticEvidenceMappings SyntheticEvidenceMapping[]
+  syntheticEvidenceAttempts SyntheticEvidenceAttempt[]
+  refundCases RefundCase[]
+  refundDecisions RefundDecision[]
+  refundActivities RefundCaseActivity[]
+  refundOpenedBlocks RefundOperationalBlock[] @relation("RefundBlockOpener")
+  refundResolvedBlocks RefundOperationalBlock[] @relation("RefundBlockResolver")
+  supportAssignments SupportTicket[] @relation("SupportOwner")
+  supportReads SupportRead[]
+  supportAssignmentEvents SupportAssignment[] @relation("SupportAssignmentActor")
+  supportTickets SupportTicket[]
+  supportEntries SupportEntry[]
+  retentionRequests RetentionReviewRequest[]
+  retentionEvents RetentionReviewEvent[]
+  retentionProtections RetentionProtection[] @relation("ProtectionCreator")
+  retentionReviews RetentionProtection[] @relation("ProtectionReviewer")
+  dealerProfile DealerProfile?
+  dealerImports DealerImport[]
+  @@index([createdAt,id])
+  adminWorkItems AdminWorkItem[]
+  listingReports ListingReport[] @relation("ListingReporter")
+  authoredReviews SaleReview[] @relation("ReviewAuthor")
+  receivedReviews SaleReview[] @relation("ReviewRecipient")
+  reviewAppeals ReviewAppeal[]
+
   id                 String         @id @default(uuid())
   email              String         @unique
   phone              String         @unique
@@ -80,6 +253,152 @@ model User {
   media              MediaAsset[]
   legalAcceptances   LegalAcceptance[]
   accountChallenges AccountChallenge[]
+  notifications Notification[]
+  listingDrafts ListingDraft[]
+  buyingConversations Conversation[] @relation("ConversationBuyer")
+  sellingConversations Conversation[] @relation("ConversationSeller")
+  chatMessages ChatMessage[]
+  blocks UserBlock[] @relation("BlockOwner")
+  blockedBy UserBlock[] @relation("BlockTarget")
+  messageReports MessageReport[]
+  savedSearches SavedSearch[]
+  favorites Favorite[]
+}
+
+model DealerProfile {
+  userId String @id
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  name String
+  canton String
+  city String
+  postalCode String
+  description String
+  published Boolean @default(false)
+  version Int @default(1)
+  updatedAt DateTime @updatedAt
+}
+
+model DealerImport {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  requestId String
+  contentHash String
+  draftIds String[]
+  createdAt DateTime @default(now())
+  @@unique([userId,requestId])
+}
+
+model Conversation {
+ protections RetentionProtection[]
+  id String @id @default(uuid())
+  vehicleId String
+  vehicle Vehicle @relation(fields:[vehicleId], references:[id])
+  buyerId String
+  buyer User @relation("ConversationBuyer",fields:[buyerId],references:[id])
+  sellerId String
+  seller User @relation("ConversationSeller",fields:[sellerId],references:[id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  messages ChatMessage[]
+  appointments Appointment[]
+  @@unique([vehicleId,buyerId])
+  @@index([buyerId,createdAt,id])
+  @@index([sellerId,createdAt,id])
+}
+
+model ChatMessage {
+  id String @id @default(uuid())
+  conversationId String
+  conversation Conversation @relation(fields:[conversationId],references:[id])
+  senderId String
+  sender User @relation(fields:[senderId],references:[id])
+  requestId String
+  body String
+  hiddenAt DateTime?
+  createdAt DateTime @default(now())
+  reports MessageReport[]
+  @@unique([senderId,requestId])
+  @@index([conversationId,createdAt,id])
+  @@index([senderId,createdAt])
+}
+
+model Appointment {
+  id String @id @default(uuid())
+  conversationId String
+  conversation Conversation @relation(fields:[conversationId],references:[id])
+  proposerId String
+  requestId String
+  startsAt DateTime
+  location String
+  status String @default("PENDING")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([proposerId,requestId])
+  @@index([conversationId,createdAt,id])
+}
+
+model UserBlock {
+  ownerId String
+  targetId String
+  owner User @relation("BlockOwner",fields:[ownerId],references:[id])
+  target User @relation("BlockTarget",fields:[targetId],references:[id])
+  createdAt DateTime @default(now())
+  @@id([ownerId,targetId])
+}
+
+model MessageReport {
+  id String @id @default(uuid())
+  messageId String
+  message ChatMessage @relation(fields:[messageId],references:[id])
+  reporterId String
+  reporter User @relation(fields:[reporterId],references:[id])
+  category String
+  note String
+  status String @default("OPEN")
+  reviewedBy String?
+  reviewedAt DateTime?
+  createdAt DateTime @default(now())
+  @@unique([messageId,reporterId])
+  @@index([status,createdAt,id])
+}
+
+model ListingDraft {
+  id String @id
+  ownerId String
+  owner User @relation(fields:[ownerId],references:[id])
+  payload Json
+  step Int @default(0)
+  revision Int @default(1)
+  status String @default("DRAFT")
+  vehicleId String? @unique
+  vehicle Vehicle? @relation(fields:[vehicleId],references:[id])
+  media MediaAsset[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([ownerId,status,updatedAt])
+}
+
+model Notification {
+  supportTicketId String?
+  supportTicket SupportTicket? @relation(fields:[supportTicketId],references:[id],onDelete:Restrict)
+  @@index([supportTicketId])
+  retentionRequestId String?
+  retentionRequest RetentionReviewRequest? @relation(fields:[retentionRequestId],references:[id],onDelete:Restrict)
+  @@index([retentionRequestId])
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventKey String
+  kind String
+  vehicleId String
+  vehicleName String
+  readAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, eventKey])
+  @@index([userId, createdAt, id])
+  @@index([userId, readAt, createdAt, id])
 }
 
 model AccountChallenge {
@@ -94,6 +413,15 @@ model AccountChallenge {
 }
 
 model Vehicle {
+  dataDeclaredAt DateTime?
+  dataCorrectedAt DateTime?
+  dataCorrectedFields String[] @default([])
+  viewDays ListingViewDay[]
+  @@index([createdAt,id])
+  listingReports ListingReport[]
+
+  city              String?
+  postalCode        String?
   id                String        @id @default(uuid())
   isSample          Boolean       @default(false)
   userId            String
@@ -127,7 +455,10 @@ model Vehicle {
   powerKw           Int?
   mileage           Int
   canton            String
-  mfkDate           DateTime
+  mfkDate           DateTime?
+  mfkStatus         String @default("DATED")
+  damageDescription String?
+  batteryHealth     Float?
   serviceHistory    String
   tireCondition     String
   description       String
@@ -151,11 +482,27 @@ model Vehicle {
   holds             PaymentHold[]
   settlement        Settlement?
   media             MediaAsset[]
+  conversations Conversation[]
+  listingDraft ListingDraft?
+  revisions ListingRevision[]
+  favorites Favorite[]
   legalAcceptanceId String?
   legalAcceptance LegalAcceptance? @relation(fields: [legalAcceptanceId], references: [id], onDelete: Restrict)
 
   @@index([status, canton, auctionEndsAt])
+  @@index([status, city])
+  @@index([status, postalCode])
   @@index([status, make, model])
+}
+
+model ListingViewDay {
+  id String @id @default(uuid())
+  vehicleId String
+  vehicle Vehicle @relation(fields:[vehicleId],references:[id],onDelete:Cascade)
+  day DateTime @db.Date
+  viewerToken String
+  @@unique([vehicleId,day,viewerToken])
+  @@index([day,viewerToken])
 }
 
 model Bid {
@@ -180,6 +527,9 @@ model Bid {
 }
 
 model Settlement {
+  handoverRevisions HandoverRevision[]
+  reviews SaleReview[]
+
   id                String    @id @default(uuid())
   vehicleId         String    @unique
   vehicle           Vehicle   @relation(fields: [vehicleId], references: [id])
@@ -207,6 +557,7 @@ model RecoveryCode {
 }
 
 model Dispute {
+  @@index([createdAt,id])
   id             String     @id @default(uuid())
   settlementId   String
   settlement     Settlement @relation(fields: [settlementId], references: [id])
@@ -225,6 +576,8 @@ model Dispute {
 }
 
 model PaymentHold {
+  refundBinding RefundCaptureBinding?
+  @@index([createdAt,id])
   id                   String        @id @default(uuid())
   userId               String
   user                 User          @relation(fields: [userId], references: [id])
@@ -285,6 +638,7 @@ model AuctionLog {
 }
 
 model OutboxEvent {
+  @@index([kind,createdAt,id])
   id          String    @id @default(uuid())
   kind        String
   payload     Json
@@ -300,6 +654,8 @@ model MediaAsset {
   ownerId   String
   owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   vehicleId String?
+  draftId String?
+  draft ListingDraft? @relation(fields:[draftId],references:[id])
   vehicle   Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
   status    String   @default("STAGING")
   bytes     Int
@@ -363,4 +719,432 @@ model LegalAcceptance {
 
   @@unique([userId,releaseId])
   @@index([userId,acceptedAt])
+}
+
+model ListingRevision {
+ id String @id @default(uuid())
+ vehicleId String
+ vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+ version Int
+ action String
+ note String
+ corrections String[]
+ snapshot Json
+ createdAt DateTime @default(now())
+ @@unique([vehicleId, version, action])
+ @@index([vehicleId, createdAt])
+}
+
+model Favorite {
+ userId String
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ vehicleId String
+ vehicle Vehicle @relation(fields:[vehicleId],references:[id],onDelete:Cascade)
+ createdAt DateTime @default(now())
+ @@id([userId,vehicleId])
+ @@index([userId,createdAt])
+}
+
+model SavedSearch {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  name String
+  filters Json
+  alerts Boolean @default(false)
+  createdAt DateTime @default(now())
+  checkedAt DateTime @default(now())
+  checkedId String @default("")
+  @@unique([userId,name])
+  @@index([alerts,checkedAt,id])
+}
+
+model ListingReport {
+ id String @id @default(uuid())
+ vehicleId String
+ vehicle Vehicle @relation(fields:[vehicleId],references:[id],onDelete:NoAction)
+ reporterId String
+ reporter User @relation("ListingReporter",fields:[reporterId],references:[id],onDelete:NoAction)
+ category String
+ note String
+ status String @default("OPEN")
+ decision String?
+ decisionNote String?
+ reviewedBy String?
+ reviewedAt DateTime?
+ createdAt DateTime @default(now())
+ @@unique([vehicleId,reporterId])
+ @@index([status,createdAt,id])
+ @@index([reporterId,createdAt,id])
+}
+model SaleReview {
+ id String @id @default(uuid())
+ settlementId String
+ settlement Settlement @relation(fields:[settlementId],references:[id],onDelete:NoAction)
+ authorId String
+ author User @relation("ReviewAuthor",fields:[authorId],references:[id],onDelete:NoAction)
+ recipientId String
+ recipient User @relation("ReviewRecipient",fields:[recipientId],references:[id],onDelete:NoAction)
+ rating Int
+ note String
+ response String?
+ responseAt DateTime?
+ status String @default("PUBLISHED")
+ createdAt DateTime @default(now())
+ appeal ReviewAppeal?
+ @@unique([settlementId,authorId])
+ @@index([recipientId,status,createdAt,id])
+}
+model ReviewAppeal {
+ id String @id @default(uuid())
+ reviewId String @unique
+ review SaleReview @relation(fields:[reviewId],references:[id],onDelete:NoAction)
+ reporterId String
+ reporter User @relation(fields:[reporterId],references:[id],onDelete:NoAction)
+ note String
+ status String @default("OPEN")
+ decision String?
+ decisionNote String?
+ reviewedBy String?
+ reviewedAt DateTime?
+ createdAt DateTime @default(now())
+ @@index([status,createdAt,id])
+}
+
+model RetentionProtection {
+ id String @id @default(uuid())
+ conversationId String
+ status String @default("ACTIVE")
+ version Int @default(1)
+ releasedAt DateTime?
+ requests RetentionReviewRequest[]
+ events RetentionReviewEvent[]
+ conversation Conversation @relation(fields:[conversationId],references:[id],onDelete:Restrict)
+ reason String
+ createdById String
+ createdBy User @relation("ProtectionCreator",fields:[createdById],references:[id],onDelete:Restrict)
+ createdAt DateTime @default(now())
+ reviewedById String?
+ reviewedBy User? @relation("ProtectionReviewer",fields:[reviewedById],references:[id],onDelete:Restrict)
+ reviewedAt DateTime?
+ reviewNote String?
+ @@index([reviewedAt,id])
+ @@index([conversationId,status])
+}
+
+model RetentionReviewRequest {
+ notifications Notification[]
+ id String @id @default(uuid())
+ protectionId String
+ protection RetentionProtection @relation(fields:[protectionId],references:[id],onDelete:Restrict)
+ requesterId String
+ requester User @relation(fields:[requesterId],references:[id],onDelete:Restrict)
+ reasonCode String
+ note String
+ evidence Json
+ snapshot String
+ protectionVersion Int
+ version Int @default(1)
+ status String @default("OPEN")
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ events RetentionReviewEvent[]
+ @@index([protectionId,createdAt,id])
+}
+
+model RetentionReviewEvent {
+ id String @id @default(uuid())
+ protectionId String
+ protection RetentionProtection @relation(fields:[protectionId],references:[id],onDelete:Restrict)
+ requestId String?
+ request RetentionReviewRequest? @relation(fields:[requestId],references:[id],onDelete:Restrict)
+ actorId String
+ actor User @relation(fields:[actorId],references:[id],onDelete:Restrict)
+ kind String
+ payload Json
+ commandId String
+ commandHash String
+ createdAt DateTime @default(now())
+ @@unique([actorId,commandId])
+ @@index([protectionId,createdAt,id])
+}
+
+model AdminWorkItem {
+ id String @id @default(uuid())
+ kind String
+ recordId String
+ ownerId String?
+ owner User? @relation(fields:[ownerId],references:[id],onDelete:Restrict)
+ version Int @default(1)
+ updatedAt DateTime @updatedAt
+ @@unique([kind,recordId])
+ @@index([ownerId])
+}
+
+model HandoverRevision {
+ id String @id @default(uuid())
+ settlementId String
+ settlement Settlement @relation(fields:[settlementId],references:[id],onDelete:Restrict)
+ version Int
+ payload Json
+ snapshot Json
+ contentHash String
+ createdById String
+ createdByRole String
+ createdAt DateTime @default(now())
+ buyerAcknowledgedAt DateTime?
+ sellerAcknowledgedAt DateTime?
+ @@unique([settlementId,version])
+}
+
+model SupportTicket {
+ ownerId String?
+ owner User? @relation("SupportOwner",fields:[ownerId],references:[id],onDelete:Restrict)
+ assignments SupportAssignment[]
+ notifications Notification[]
+ id String @id @default(uuid())
+ userId String
+ user User @relation(fields:[userId], references:[id], onDelete:Restrict)
+ subject String
+ status String @default("OPEN")
+ version Int @default(0)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ entries SupportEntry[]
+ @@index([userId,updatedAt])
+ @@index([status,updatedAt])
+}
+model SupportEntry {
+ reads SupportRead[]
+ id String @id @default(uuid())
+ ticketId String
+ ticket SupportTicket @relation(fields:[ticketId],references:[id],onDelete:Restrict)
+ actorId String
+ actor User @relation(fields:[actorId],references:[id],onDelete:Restrict)
+ commandId String
+ payload String
+ body String
+ staff Boolean
+ status String
+ createdAt DateTime @default(now())
+ @@unique([actorId,commandId])
+ @@index([ticketId,createdAt])
+}
+
+model SupportRead {
+ entryId String
+ userId String
+ entry SupportEntry @relation(fields:[entryId],references:[id],onDelete:Restrict)
+ user User @relation(fields:[userId],references:[id],onDelete:Restrict)
+ readAt DateTime @default(now())
+ @@id([entryId,userId])
+ @@index([userId])
+}
+model SupportAssignment {
+ id String @id @default(uuid())
+ ticketId String
+ ticket SupportTicket @relation(fields:[ticketId],references:[id],onDelete:Restrict)
+ actorId String
+ actor User @relation("SupportAssignmentActor",fields:[actorId],references:[id],onDelete:Restrict)
+ commandId String
+ payload String
+ previousOwnerId String?
+ ownerId String?
+ reason String
+ createdAt DateTime @default(now())
+ @@unique([actorId,commandId])
+ @@index([ticketId,createdAt])
+}
+
+// L11 internal persistence; no production policy is seeded.
+model RefundRuntimePolicy {
+  id String @id
+  policy Json
+  actors Json
+}
+model RefundCaptureState {
+  operationalBlocks RefundOperationalBlock[]
+  binding RefundCaptureBinding?
+  cases RefundCase[]
+  id String @id
+  scopeKey String
+  captureRef String
+  version Int
+  snapshot Json
+  commands RefundCommandState[]
+  events RefundStateEvent[]
+  receipts RefundReceipt[]
+  @@unique([scopeKey,captureRef])
+}
+model RefundCommandState {
+  key String @id
+  captureId String
+  capture RefundCaptureState @relation(fields:[captureId],references:[id],onDelete:Restrict)
+  caseId String
+  decisionVersion Int
+  leaseToken String?
+  leaseUntil DateTime? @db.Timestamptz
+  receipt RefundReceipt?
+  @@unique([captureId,caseId,decisionVersion])
+}
+model RefundStateEvent {
+  id BigInt @id @default(autoincrement())
+  captureId String
+  capture RefundCaptureState @relation(fields:[captureId],references:[id],onDelete:Restrict)
+  version Int
+  kind String
+  actorId String?
+  snapshot Json
+  createdAt DateTime @default(now()) @db.Timestamptz
+  @@unique([captureId,version])
+}
+model RefundReceipt {
+  scopeKey String
+  refundRef String
+  captureId String
+  capture RefundCaptureState @relation(fields:[captureId],references:[id],onDelete:Restrict)
+  commandKey String @unique
+  command RefundCommandState @relation(fields:[commandKey],references:[key],onDelete:Restrict)
+  amountMinor Int
+  currency String
+  createdAt DateTime @default(now()) @db.Timestamptz
+  @@id([scopeKey,refundRef])
+}
+
+model RefundCaptureBinding {
+  captureId String @id
+  capture RefundCaptureState @relation(fields:[captureId],references:[id],onDelete:Restrict)
+  holdId String @unique
+  hold PaymentHold @relation(fields:[holdId],references:[id],onDelete:Restrict)
+}
+model RefundCase {
+  approvedVersion Int?
+  previousCaseId String?
+  previousCase RefundCase? @relation("RefundReopen",fields:[previousCaseId],references:[id],onDelete:Restrict)
+  subsequentCases RefundCase[] @relation("RefundReopen")
+  reviewBasis String?
+  reviewRound Int @default(0)
+  evidenceReadyAt DateTime? @db.Timestamptz
+  informationDueAt DateTime? @db.Timestamptz
+  lastStatusAt DateTime? @db.Timestamptz
+  activities RefundCaseActivity[]
+  amountMinor Int
+  currency String
+  id String @id
+  captureId String
+  capture RefundCaptureState @relation(fields:[captureId],references:[id],onDelete:Restrict)
+  requesterId String
+  requester User @relation(fields:[requesterId],references:[id],onDelete:Restrict)
+  requestId String
+  reason String
+  status String @default("REQUESTED")
+  version Int @default(0)
+  policyVersion String?
+  createdAt DateTime @default(now()) @db.Timestamptz
+  decisions RefundDecision[]
+  @@unique([requesterId,requestId])
+}
+model RefundDecision {
+  reviewRound Int @default(0)
+  id String @id
+  caseId String
+  case RefundCase @relation(fields:[caseId],references:[id],onDelete:Restrict)
+  reviewerId String
+  reviewer User @relation(fields:[reviewerId],references:[id],onDelete:Restrict)
+  requestId String
+  outcome String
+  reason String
+  expectedVersion Int
+  policyVersion String
+  createdAt DateTime @default(now()) @db.Timestamptz
+  @@unique([reviewerId,requestId])
+  @@unique([caseId,reviewerId,reviewRound])
+}
+
+model RefundCaseActivity {
+ id String @id
+ caseId String
+ case RefundCase @relation(fields:[caseId],references:[id],onDelete:Restrict)
+ actorId String
+ actor User @relation(fields:[actorId],references:[id],onDelete:Restrict)
+ requestId String
+ action String
+ reason String
+ payloadHash String
+ createdAt DateTime @default(now()) @db.Timestamptz
+ @@unique([actorId,requestId])
+ @@index([caseId,createdAt])
+}
+model RefundOperationalBlock {
+ id String @id
+ scopeKey String
+ captureId String?
+ capture RefundCaptureState? @relation(fields:[captureId],references:[id],onDelete:Restrict)
+ kind String
+ openedBy String
+ opener User @relation("RefundBlockOpener",fields:[openedBy],references:[id],onDelete:Restrict)
+ openedReason String
+ resolvedBy String?
+ resolver User? @relation("RefundBlockResolver",fields:[resolvedBy],references:[id],onDelete:Restrict)
+ resolvedReason String?
+ openedAt DateTime @default(now()) @db.Timestamptz
+ resolvedAt DateTime? @db.Timestamptz
+ @@index([scopeKey])
+}
+
+model SyntheticEvidenceImport {
+ id String @id
+ scopeKey String
+ batchId String
+ payloadHash String
+ status String
+ manifest Json
+ pages Json?
+ summary Json
+ createdAt DateTime @default(now()) @db.Timestamptz
+ attempts SyntheticEvidenceAttempt[]
+ links SyntheticEvidenceLink[]
+ @@unique([scopeKey,batchId,payloadHash])
+}
+model SyntheticEvidenceAttempt {
+ id String @id
+ actorId String
+ actor User @relation(fields:[actorId],references:[id],onDelete:Restrict)
+ requestId String
+ inputHash String
+ importId String
+ import SyntheticEvidenceImport @relation(fields:[importId],references:[id],onDelete:Restrict)
+ createdAt DateTime @default(now()) @db.Timestamptz
+ @@unique([actorId,requestId])
+}
+model SyntheticEvidenceEvent {
+ mapping SyntheticEvidenceMapping?
+ id String @id
+ scopeKey String
+ eventId String
+ economicId String
+ contentHash String
+ payload Json
+ links SyntheticEvidenceLink[]
+ @@unique([scopeKey,eventId])
+ @@unique([scopeKey,economicId])
+}
+model SyntheticEvidenceLink {
+ importId String
+ import SyntheticEvidenceImport @relation(fields:[importId],references:[id],onDelete:Restrict)
+ eventId String
+ event SyntheticEvidenceEvent @relation(fields:[eventId],references:[id],onDelete:Restrict)
+ @@id([importId,eventId])
+}
+
+model SyntheticEvidenceMapping {
+ eventId String @id
+ event SyntheticEvidenceEvent @relation(fields:[eventId],references:[id],onDelete:Restrict)
+ targetKind String
+ targetId String
+ actorId String
+ actor User @relation(fields:[actorId],references:[id],onDelete:Restrict)
+ reason String
+ createdAt DateTime @default(now()) @db.Timestamptz
+ @@unique([targetKind,targetId])
 }

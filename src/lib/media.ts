@@ -153,6 +153,7 @@ export async function cleanupMedia({
   const candidates = await db.mediaAsset.findMany({
     where: {
       vehicleId: null,
+      draftId: null,
       OR: [
         { status: 'DELETING' },
         { status: 'READY', createdAt: { lt: cutoff } },
@@ -171,6 +172,7 @@ export async function cleanupMedia({
         if (
           !current ||
           current.vehicleId ||
+          current.draftId ||
           (current.status !== 'DELETING' &&
             current.createdAt >= (current.status === 'STAGING' ? stagingCutoff : cutoff))
         )

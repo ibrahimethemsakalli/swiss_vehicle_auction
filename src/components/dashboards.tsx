@@ -1,16 +1,15 @@
 'use client';
 import { Textarea } from './ui/form-controls';
+import { correctionKeys } from '../lib/review-feedback';
 import Link from 'next/link';
 import { Settlements } from './settlements';
 import { Offers } from './offers';
 import { Disputes } from './disputes';
-import { IdentityReviews } from './identity-reviews';
 import { PaymentHold } from './payment-hold';
 import { useState } from 'react';
 import {
   ArrowRight,
   CarFront,
-  CheckCircle2,
   ClipboardCheck,
   CreditCard,
   Gavel,
@@ -27,14 +26,13 @@ import {
   EmptyState,
   ErrorState,
   Loading,
-  SellerBadge,
   StatusBadge,
   useResource,
   VehicleImage,
 } from './common';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from './ui/dialog';
+import { DialogContent, DialogDescription, DialogTitle } from './ui/dialog';
 type Bid = {
   id: string;
   amount: number;
@@ -229,6 +227,17 @@ export function UserDashboard() {
             <div>
               <p className="eyebrow">{t('garage')}</p>
               <h1>{t('welcome')}</h1>
+              <p>
+                <Link href="/drafts">{t('draftsTitle')}</Link>
+                {data.user.role === 'DEALER' && (
+                  <>
+                    {' '}
+                    · <Link href="/dealer">{t('dealerTitle')}</Link>
+                  </>
+                )}
+                {' · '}
+                <Link href="/statistics">{t('listingStatsTitle')}</Link>
+              </p>
               <p>{t('garageIntro')}</p>
             </div>
             <Button asChild>
@@ -353,131 +362,7 @@ export function UserDashboard() {
   );
 }
 type ReviewVehicle = VehicleView & { vinChassis: string };
-type AdminData = { demo: boolean; queue: ReviewVehicle[]; payments: Payment[] };
-export function AdminDashboard() {
-  const { t } = useLocale();
-  const { data, error, loading, reload } = useResource<AdminData>('/api/admin');
-  const [tab, setTab] = useState('queue');
-  const [selected, setSelected] = useState<ReviewVehicle | null>(null);
-  const [message, setMessage] = useState<MessageKey | null>(null);
-  if (loading) return <Loading />;
-  if (error === 401) return <SignInGate />;
-  if (error || !data) return <ErrorState code={error} retry={reload} />;
-  return (
-    <>
-      {data.demo && <DemoBanner />}
-      <div className="container dashboard-page">
-        <DashboardNav tab={tab} setTab={setTab} admin />
-        <div className="dashboard-content">
-          <div className="page-heading">
-            <p className="eyebrow">AUTOVERI / {t('admin')}</p>
-            <h1>{t('adminTitle')}</h1>
-            <p>{t('adminIntro')}</p>
-          </div>
-          <Stats
-            items={[
-              { label: 'queue', value: data.queue.length, icon: ClipboardCheck },
-              {
-                label: 'AUTHORIZED',
-                value: data.payments.filter((p) => p.status === 'AUTHORIZED').length,
-                icon: CreditCard,
-              },
-              {
-                label: 'RELEASE_PENDING',
-                value: data.payments.filter((p) => p.status === 'RELEASE_PENDING').length,
-                icon: CheckCircle2,
-              },
-            ]}
-          />
-          {message && (
-            <p className="notice success mb-5" role="status">
-              {t(message)}
-            </p>
-          )}
-          {tab === 'disputes' ? (
-            data.demo ? (
-              <EmptyState />
-            ) : (
-              <Disputes />
-            )
-          ) : tab === 'settlements' ? (
-            data.demo ? (
-              <EmptyState />
-            ) : (
-              <Settlements />
-            )
-          ) : tab === 'identities' ? (
-            data.demo ? (
-              <EmptyState />
-            ) : (
-              <IdentityReviews />
-            )
-          ) : tab === 'queue' ? (
-            <section className="panel">
-              <h2>
-                <ClipboardCheck size={20} />
-                {t('queue')}
-              </h2>
-              {data.queue.length ? (
-                <div className="review-grid">
-                  {data.queue.map((v) => (
-                    <article className="review-card" key={v.id}>
-                      <VehicleImage src={v.images[0]} alt={`${v.make} ${v.model}`} />
-                      <div>
-                        <StatusBadge status={v.status} />
-                        <h3>
-                          {v.make} {v.model}
-                        </h3>
-                        <SellerBadge vehicle={v} />
-                        <p>
-                          {v.canton} · {v.stammnummer}
-                        </p>
-                        <Button variant="outline" onClick={() => setSelected(v)}>
-                          {t('review')}
-                          <ArrowRight size={15} />
-                        </Button>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState />
-              )}
-            </section>
-          ) : (
-            <section className="panel">
-              <h2>{t('payments')}</h2>
-              <Button variant="outline" onClick={() => setTab('settlements')}>
-                {t('settlements')}
-              </Button>
-              <PaymentsTable rows={data.payments} />
-            </section>
-          )}
-        </div>
-      </div>
-      <Dialog
-        open={!!selected}
-        onOpenChange={(open) => {
-          if (!open) setSelected(null);
-        }}
-      >
-        {selected && (
-          <ReviewDialog
-            key={selected.id}
-            vehicle={selected}
-            demo={data.demo}
-            onSaved={() => {
-              setSelected(null);
-              setMessage('reviewSuccess');
-              reload();
-            }}
-          />
-        )}
-      </Dialog>
-    </>
-  );
-}
-function ReviewDialog({
+export function ReviewDialog({
   vehicle,
   demo,
   onSaved,
@@ -490,6 +375,7 @@ function ReviewDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const [action, setAction] = useState('approve');
+  const [mfkState, setMfkState] = useState(vehicle.mfkStatus ?? 'DATED');
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
@@ -499,7 +385,13 @@ function ReviewDialog({
       const response = await fetch('/api/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: vehicle.id, action, ...Object.fromEntries(form) }),
+        body: JSON.stringify({
+          id: vehicle.id,
+          version: vehicle.version,
+          action,
+          ...Object.fromEntries(form),
+          corrections: form.getAll('corrections'),
+        }),
       });
       if (!response.ok) throw new Error();
       onSaved();
@@ -516,6 +408,32 @@ function ReviewDialog({
         {t('reviewHint')}
       </DialogDescription>
       <form onSubmit={(e) => void submit(e)}>
+        <label className="form-label">
+          {t('mfkStatus')}
+          <select
+            className="field"
+            name="mfkStatus"
+            value={mfkState}
+            onChange={(e) => setMfkState(e.target.value as typeof mfkState)}
+          >
+            <option value="DATED">{t('mfkDated')}</option>
+            <option value="NEVER">{t('mfkNever')}</option>
+            <option value="UNKNOWN">{t('mfkUnknown')}</option>
+          </select>
+        </label>
+        <p>{t('disclosureHint')}</p>
+        <dl className="data-grid">
+          <dt>{t('modelYear')}</dt>
+          <dd>{vehicle.modelYear ?? t('notProvided')}</dd>
+          <dt>{t('accidentHistory')}</dt>
+          <dd>
+            {vehicle.accidentHistory ? t(vehicle.accidentHistory as MessageKey) : t('notProvided')}
+          </dd>
+          <dt>{t('damageDescription')}</dt>
+          <dd className="description-text">{vehicle.damageDescription || t('notProvided')}</dd>
+          <dt>{t('batteryHealth')}</dt>
+          <dd>{vehicle.batteryHealth == null ? t('notProvided') : `${vehicle.batteryHealth}%`}</dd>
+        </dl>
         <div className="form-grid">
           {[
             ['make', 'make', vehicle.make],
@@ -523,7 +441,7 @@ function ReviewDialog({
             ['stammnummer', 'stammnummer', vehicle.stammnummer],
             ['vinChassis', 'vinFull', vehicle.vinChassis],
             ['firstRegistration', 'registration', vehicle.firstRegistration?.slice(0, 10) ?? ''],
-            ['mfkDate', 'inspection', vehicle.mfkDate.slice(0, 10)],
+            ['mfkDate', 'inspection', vehicle.mfkDate?.slice(0, 10) ?? ''],
           ].map(([name, label, value]) => (
             <label className="form-label" key={name}>
               {t(label as MessageKey)}
@@ -531,7 +449,8 @@ function ReviewDialog({
                 name={name}
                 defaultValue={value}
                 type={name === 'mfkDate' || name === 'firstRegistration' ? 'date' : 'text'}
-                required
+                required={name !== 'mfkDate' || mfkState === 'DATED'}
+                disabled={name === 'mfkDate' && mfkState !== 'DATED'}
               />
             </label>
           ))}
@@ -547,6 +466,15 @@ function ReviewDialog({
             required
           />
         </label>
+        <fieldset className="advanced-fields">
+          <legend>{t('revisionChecklist')}</legend>
+          {correctionKeys.map((key) => (
+            <label key={key} className="check-label">
+              <input type="checkbox" name="corrections" value={key} />
+              {t(`correction${key}` as MessageKey)}
+            </label>
+          ))}
+        </fieldset>
         {error && (
           <p className="notice" role="alert">
             {t('reviewFailed')}

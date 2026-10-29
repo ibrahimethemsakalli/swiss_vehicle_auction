@@ -35,14 +35,20 @@ type Draft = {
   powerKw: string;
   mileage: string;
   canton: string;
+  city: string;
+  postalCode: string;
   mfkDate: string;
+  mfkStatus: string;
+  modelYear: string;
+  damageDescription: string;
   serviceHistory: string;
   tireCondition: string;
   startPrice: string;
   reservePrice: string;
+  buyNowPrice: string;
   description: string;
 };
-type Photo = { file: File; preview: string; url?: string; expiresAt?: string };
+type Photo = { file?: File; attached?: boolean; preview: string; url?: string; expiresAt?: string };
 const empty: Draft = {
   stammnummer: '',
   vinChassis: '',
@@ -53,18 +59,33 @@ const empty: Draft = {
   powerKw: '',
   mileage: '',
   canton: 'ZH',
+  city: '',
+  postalCode: '',
   mfkDate: '',
+  mfkStatus: 'UNKNOWN',
+  modelYear: '',
+  damageDescription: '',
   serviceHistory: 'FULL',
   tireCondition: '',
   startPrice: '',
   reservePrice: '',
+  buyNowPrice: '',
   description: '',
 };
 const steps = ['stepScan', 'stepVerify', 'stepPhotos', 'stepAuction'] as const;
 export function ListingWizard() {
-  const { t, money } = useLocale();
+  const { t, money, locale } = useLocale();
   const { status } = useSession();
   const { data } = useResource<{ demo: boolean }>('/api/market');
+  const draftId = useRef('');
+  const [revision, setRevision] = useState(0);
+  const [savedAt, setSavedAt] = useState('');
+  const [restoring, setRestoring] = useState(true);
+  const [restoreFailed, setRestoreFailed] = useState(false);
+  const [preview, setPreview] = useState(false);
+  const [listingType, setListingType] = useState<'AUCTION_7_DAYS' | 'FIXED_PRICE_OFFERS'>(
+    'AUCTION_7_DAYS',
+  );
   const [specs, setSpecs] = useState<Record<string, string>>({});
   const [equipment, setEquipment] = useState<string[]>([]);
   const [step, setStep] = useState(0);
@@ -93,6 +114,126 @@ export function ListingWizard() {
     },
     [],
   );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const id = new URLSearchParams(window.location.search).get('draft');
+    if (!id) {
+      setRestoring(false);
+      return;
+    }
+    void (async () => {
+      try {
+        const r = await fetch('/api/listing-drafts?id=' + encodeURIComponent(id), {
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        if (!r.ok) throw Error();
+        const row = await r.json();
+        if (controller.signal.aborted) return;
+        draftId.current = row.id;
+        setRevision(row.revision);
+        setSavedAt(row.updatedAt);
+        const p = row.payload;
+        setDraft({
+          ...empty,
+          ...p.draft,
+          mfkStatus: p.draft.mfkStatus || (p.draft.mfkDate ? 'DATED' : 'UNKNOWN'),
+        });
+        setSpecs(p.specs);
+        setEquipment(p.equipment);
+        setStep(row.step);
+        setListingType(p.listingType);
+        setCustomMake(p.customMake);
+        setCustomModel(p.customModel);
+        setRegistrationYear(p.registrationYear);
+        setPhotos(p.images.map((url: string) => ({ url, preview: url, attached: true })));
+        setConsent(false);
+      } catch {
+        if (!controller.signal.aborted) setRestoreFailed(true);
+      } finally {
+        if (!controller.signal.aborted) setRestoring(false);
+      }
+    })();
+    return () => controller.abort();
+  }, []);
+  function draftError(error: unknown) {
+    const code = error instanceof Error ? error.message : '';
+    const keys: Record<string, MessageKey> = {
+      DRAFT_CONFLICT: 'draftConflict',
+      DRAFT_LOCKED: 'draftLocked',
+      DRAFT_QUOTA: 'draftQuota',
+      PHOTO_OWNERSHIP_REQUIRED: 'draftPhotoError',
+      DRAFT_PRICE: 'draftPriceError',
+      VERIFICATION_REQUIRED: 'verifiedRequired',
+      PHOTO_QUOTA_EXCEEDED: 'uploadQuota',
+      PHOTO_BUSY: 'uploadBusy',
+    };
+    setMessage(keys[code] ?? 'draftFailed');
+  }
+  async function saveRecord() {
+    const uploaded: Photo[] = [];
+    for (const photo of photos) {
+      if (
+        photo.url &&
+        (photo.attached || (photo.expiresAt && Date.parse(photo.expiresAt) > Date.now()))
+      ) {
+        uploaded.push(photo);
+        continue;
+      }
+      if (!photo.file) throw Error('PHOTO_OWNERSHIP_REQUIRED');
+      const form = new FormData();
+      form.set('photo', photo.file);
+      const r = await fetch('/api/uploads', { method: 'POST', body: form });
+      const result = await r.json();
+      if (!r.ok) throw Error(result.error);
+      photo.url = result.url;
+      photo.expiresAt = result.expiresAt;
+      uploaded.push(photo);
+    }
+    setPhotos([...uploaded]);
+    draftId.current ||= crypto.randomUUID();
+    const payload = {
+      draft,
+      specs,
+      equipment,
+      images: uploaded.map((p) => p.url),
+      customMake,
+      customModel,
+      registrationYear,
+      listingType,
+    };
+    const r = await fetch('/api/listing-drafts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'save', id: draftId.current, revision, step, payload }),
+    });
+    const row = await r.json();
+    if (!r.ok) {
+      setValidation(readValidation(row));
+      throw Error(row.error);
+    }
+    setRevision(row.revision);
+    setSavedAt(row.updatedAt);
+    setPhotos(uploaded.map((p) => ({ ...p, attached: true })));
+    window.history.replaceState(window.history.state, '', '/sell?draft=' + row.id);
+    return row;
+  }
+  async function saveDraft() {
+    if (busy || restoring) return;
+    setBusy(true);
+    setMessage(null);
+    setValidation([]);
+    try {
+      await saveRecord();
+      setMessage('draftSaved');
+    } catch (e) {
+      draftError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const update = (key: keyof Draft, value: string) => {
     setValidation([]);
     setDraft((old) => ({ ...old, [key]: value }));
@@ -151,71 +292,30 @@ export function ListingWizard() {
     ]);
   }
   async function submit() {
-    if (!consent || busy || data?.demo) return;
+    if (!consent || busy || restoring || data?.demo) return;
     setBusy(true);
     setMessage(null);
     setValidation([]);
     try {
-      const uploaded: Photo[] = [];
-      for (const photo of photos) {
-        if (photo.url && photo.expiresAt && Date.parse(photo.expiresAt) > Date.now()) {
-          uploaded.push(photo);
-          continue;
-        }
-        const form = new FormData();
-        form.set('photo', photo.file);
-        const response = await fetch('/api/uploads', { method: 'POST', body: form });
-        if (!response.ok) {
-          const error = await response.json().catch(() => ({}));
-          throw new Error(
-            error.error === 'PHOTO_QUOTA_EXCEEDED'
-              ? 'uploadQuota'
-              : error.error === 'PHOTO_BUSY'
-                ? 'uploadBusy'
-                : error.error === 'INVALID_IMAGE' || error.error === 'PHOTO_TOO_LARGE'
-                  ? 'invalidPhoto'
-                  : 'submitFailed',
-          );
-        }
-        const result = await response.json();
-        photo.url = result.url;
-        photo.expiresAt = result.expiresAt;
-        uploaded.push(photo);
-      }
-      setPhotos([...uploaded]);
-      const { reservePrice, cubicCapacity, powerKw, ...rest } = draft;
-      const payload = {
-        ...rest,
-        equipment,
-        ...Object.fromEntries(
-          Object.entries(specs)
-            .filter(([, value]) => value !== '')
-            .map(([key, value]) => [key, key in specNumbers ? Number(value) : value]),
-        ),
-        mileage: Number(draft.mileage),
-        listingType: 'AUCTION_7_DAYS',
-        images: uploaded.map((p) => p.url),
-        ...(reservePrice ? { reservePrice } : {}),
-        ...(cubicCapacity ? { cubicCapacity: Number(cubicCapacity) } : {}),
-        ...(powerKw ? { powerKw: Number(powerKw) } : {}),
-      };
-      const response = await fetch('/api/vehicles', {
+      const row = await saveRecord();
+      const r = await fetch('/api/listing-drafts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          action: 'submit',
+          id: row.id,
+          revision: row.revision,
+          consent: true,
+        }),
       });
-      if (!response.ok) {
-        setValidation(readValidation(await response.json().catch(() => ({}))));
-        throw new Error();
+      const result = await r.json();
+      if (!r.ok) {
+        setValidation(readValidation(result));
+        throw Error(result.error);
       }
       setSuccess(true);
-    } catch (error) {
-      setMessage(
-        error instanceof Error &&
-          ['uploadQuota', 'uploadBusy', 'invalidPhoto'].includes(error.message)
-          ? (error.message as MessageKey)
-          : 'submitFailed',
-      );
+    } catch (e) {
+      draftError(e);
     } finally {
       setBusy(false);
     }
@@ -248,12 +348,97 @@ export function ListingWizard() {
       </label>
     );
   }
+  if (restoring)
+    return (
+      <div className="container wizard-page">
+        <p role="status">{t('loading')}</p>
+      </div>
+    );
+  if (restoreFailed)
+    return (
+      <div className="container wizard-page">
+        <p role="alert">{t('draftFailed')}</p>
+        <Link href="/drafts">{t('draftsTitle')}</Link>
+      </div>
+    );
+  if (preview) {
+    const labels: Record<keyof Draft, MessageKey> = {
+      make: 'make',
+      model: 'model',
+      stammnummer: 'stammnummer',
+      vinChassis: 'vinFull',
+      firstRegistration: 'registration',
+      cubicCapacity: 'capacity',
+      powerKw: 'power',
+      mileage: 'mileage',
+      canton: 'canton',
+      city: 'locationCity',
+      postalCode: 'locationPostalCode',
+      mfkDate: 'inspection',
+      mfkStatus: 'mfkStatus',
+      modelYear: 'modelYear',
+      damageDescription: 'damageDescription',
+      serviceHistory: 'serviceHistory',
+      tireCondition: 'tireCondition',
+      startPrice: 'startingPrice',
+      reservePrice: 'reservePrice',
+      buyNowPrice: 'draftBuyNow',
+      description: 'description',
+    };
+    return (
+      <section className="container drafts-page">
+        <h1>{t('draftPreview')}</h1>
+        <p className="notice">{t('draftPreviewHint')}</p>
+        <Button onClick={() => setPreview(false)}>{t('draftBack')}</Button>
+        <h2>
+          {draft.make || t('draftUntitled')} {draft.model}
+        </h2>
+        <p>{t(listingType === 'AUCTION_7_DAYS' ? 'draftAuction' : 'draftFixed')}</p>
+        <div className="draft-photo-grid">
+          {photos.map((p, i) => (
+            <VehicleImage key={p.preview} src={p.preview} alt={t('photo', { number: i + 1 })} />
+          ))}
+        </div>
+        <dl className="spec-grid">
+          {Object.entries(draft).map(([k, v]) => (
+            <div key={k}>
+              <dt>{t(labels[k as keyof Draft])}</dt>
+              <dd>
+                {k === 'mfkStatus'
+                  ? t(v === 'DATED' ? 'mfkDated' : v === 'NEVER' ? 'mfkNever' : 'mfkUnknown')
+                  : v
+                    ? k === 'serviceHistory'
+                      ? t(v as MessageKey)
+                      : v
+                    : t('notProvided')}
+              </dd>
+            </div>
+          ))}
+          {Object.entries(specs).map(([k, v]) => (
+            <div key={k}>
+              <dt>{t(k as MessageKey)}</dt>
+              <dd>{v ? (k in specNumbers ? v : t(v as MessageKey)) : t('notProvided')}</dd>
+            </div>
+          ))}
+          <div>
+            <dt>{t('equipment')}</dt>
+            <dd>
+              {equipment.length
+                ? equipment.map((e) => t(e as MessageKey)).join(', ')
+                : t('notProvided')}
+            </dd>
+          </div>
+        </dl>
+        <Button onClick={() => setPreview(false)}>{t('draftBack')}</Button>
+      </section>
+    );
+  }
   if (success)
     return (
       <div className="container success-page">
         <CheckCircle2 size={60} />
         <h1>{t('listingSuccess')}</h1>
-        <p>{t('listingSuccessText')}</p>
+        <p>{t(listingType === 'AUCTION_7_DAYS' ? 'listingSuccessText' : 'listingSuccess')}</p>
         <Button asChild>
           <Link href="/dashboard">
             {t('garage')}
@@ -271,6 +456,22 @@ export function ListingWizard() {
           <h1>{t('wizardTitle')}</h1>
           <p>{t('wizardIntro')}</p>
         </div>
+        <div className="draft-toolbar">
+          <Link href="/drafts">{t('draftsTitle')}</Link>
+          <Button variant="outline" disabled={busy || data?.demo} onClick={() => void saveDraft()}>
+            {t('draftSave')}
+          </Button>
+          <Button variant="outline" disabled={busy} onClick={() => setPreview(true)}>
+            {t('draftPreview')}
+          </Button>
+          <p>{t('draftManualSave')}</p>
+          {savedAt && (
+            <p>
+              {t('draftSavedAt')}{' '}
+              {new Date(savedAt).toLocaleString(`${locale}-CH`, { timeZone: 'Europe/Zurich' })}
+            </p>
+          )}
+        </div>
         <ol className="wizard-steps">
           {steps.map((key, i) => (
             <li
@@ -279,364 +480,440 @@ export function ListingWizard() {
               aria-current={i === step ? 'step' : undefined}
             >
               <span>{i < step ? <Check size={17} /> : i + 1}</span>
-              <b>{t(key)}</b>
+              <b>{t(i === 3 && listingType === 'FIXED_PRICE_OFFERS' ? 'draftListingType' : key)}</b>
             </li>
           ))}
         </ol>
         <div className="wizard-layout">
           <section className="panel wizard-form" onInput={() => setValidation([])}>
-            <h2 ref={heading} tabIndex={-1}>
-              {t(
-                step === 0
-                  ? 'scanTitle'
-                  : step === 1
-                    ? 'stepVerify'
-                    : step === 2
-                      ? 'photosTitle'
-                      : 'auctionTitle',
-              )}
-            </h2>
-            <p>
-              {t(
-                step === 0
-                  ? 'scanHint'
-                  : step === 1
-                    ? 'ocrReview'
-                    : step === 2
-                      ? 'photosHint'
-                      : 'auctionIntro',
-              )}
-            </p>
-            {message && (
-              <p className="notice" role="status">
-                {t(message)}
+            <fieldset disabled={busy} className="draft-fieldset">
+              <h2 ref={heading} tabIndex={-1}>
+                {t(
+                  step === 0
+                    ? 'scanTitle'
+                    : step === 1
+                      ? 'stepVerify'
+                      : step === 2
+                        ? 'photosTitle'
+                        : listingType === 'AUCTION_7_DAYS'
+                          ? 'auctionTitle'
+                          : 'draftListingType',
+                )}
+              </h2>
+              <p>
+                {t(
+                  step === 0
+                    ? 'scanHint'
+                    : step === 1
+                      ? 'ocrReview'
+                      : step === 2
+                        ? 'photosHint'
+                        : listingType === 'AUCTION_7_DAYS'
+                          ? 'auctionIntro'
+                          : 'draftFixed',
+                )}
               </p>
-            )}
-            <ValidationErrors issues={validation} />
-            {step === 0 && (
-              <>
-                <label className="upload-zone">
-                  <span className="upload-icon">
-                    <FileScan size={35} />
-                  </span>
-                  <strong>{t('chooseDocument')}</strong>
-                  <span>{document?.name ?? t('imageLimit')}</span>
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png"
-                    capture="environment"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (
-                        file &&
-                        ['image/jpeg', 'image/png'].includes(file.type) &&
-                        file.size <= 5_000_000
-                      ) {
-                        setDocument(file);
-                        setMessage(null);
-                      } else setMessage('invalidPhoto');
-                    }}
-                  />
-                  <span className="upload-button">
-                    <Camera size={16} />
-                    {t('chooseDocument')}
-                  </span>
-                </label>
-                <div className="wizard-actions">
-                  <Button variant="ghost" onClick={() => go(1)}>
-                    {t('manual')}
-                    <ArrowRight size={15} />
-                  </Button>
-                  <Button disabled={!document || busy || data?.demo} onClick={() => void parse()}>
-                    {busy ? t('loading') : t('parse')}
-                  </Button>
-                </div>
-              </>
-            )}
-            {step === 1 && (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  go(2);
-                }}
-              >
-                <div className="form-grid">
-                  <label className="form-label">
-                    {t('make')} *
-                    <Select
-                      className="field"
-                      required
-                      value={customMake ? '__other' : draft.make}
+              {message && (
+                <p className="notice" role="status">
+                  {t(message)}
+                </p>
+              )}
+              <ValidationErrors issues={validation} />
+              {step === 0 && (
+                <>
+                  <label className="upload-zone">
+                    <span className="upload-icon">
+                      <FileScan size={35} />
+                    </span>
+                    <strong>{t('chooseDocument')}</strong>
+                    <span>{document?.name ?? t('imageLimit')}</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png"
+                      capture="environment"
                       onChange={(e) => {
-                        setCustomMake(e.target.value === '__other');
-                        setCustomModel(false);
-                        setDraft((old) => ({
-                          ...old,
-                          make: e.target.value === '__other' ? '' : e.target.value,
-                          model: '',
-                        }));
+                        const file = e.target.files?.[0];
+                        if (
+                          file &&
+                          ['image/jpeg', 'image/png'].includes(file.type) &&
+                          file.size <= 5_000_000
+                        ) {
+                          setDocument(file);
+                          setMessage(null);
+                        } else setMessage('invalidPhoto');
                       }}
-                    >
-                      <option value="">{t('selectVehicleOption')}</option>
-                      {Object.keys(vehicleCatalog)
-                        .sort()
-                        .map((make) => (
-                          <option key={make}>{make}</option>
-                        ))}
-                      <option value="__other">{t('manualVehicleOption')}</option>
-                    </Select>
+                    />
+                    <span className="upload-button">
+                      <Camera size={16} />
+                      {t('chooseDocument')}
+                    </span>
                   </label>
-                  {customMake && field('make', 'make', 'text', true, { maxLength: 80 })}
-                  <label className="form-label">
-                    {t('model')} *
-                    <Select
-                      className="field"
-                      required
-                      disabled={!draft.make}
-                      value={customModel ? '__other' : draft.model}
-                      onChange={(e) => {
-                        setCustomModel(e.target.value === '__other');
-                        update('model', e.target.value === '__other' ? '' : e.target.value);
-                      }}
-                    >
-                      <option value="">{t('selectVehicleOption')}</option>
-                      {(vehicleCatalog[draft.make] ?? []).map((model) => (
-                        <option key={model}>{model}</option>
-                      ))}
-                      <option value="__other">{t('manualVehicleOption')}</option>
-                    </Select>
-                  </label>
-                  {customModel && field('model', 'model', 'text', true, { maxLength: 100 })}
-                  <label className="form-label">
-                    {t('registrationYear')} *
-                    <Select
-                      className="field"
-                      required
-                      value={registrationYear}
-                      onChange={(e) => {
-                        setRegistrationYear(e.target.value);
-                        update('firstRegistration', '');
-                      }}
-                    >
-                      <option value="">{t('selectVehicleOption')}</option>
-                      {Array.from(
-                        { length: new Date().getFullYear() - 1899 },
-                        (_, i) => new Date().getFullYear() - i,
-                      ).map((year) => (
-                        <option key={year}>{year}</option>
-                      ))}
-                    </Select>
-                  </label>
-                  <p className="fine-print">{t('vehicleCatalogHint')}</p>
-                  {field('stammnummer', 'stammnummer', 'text', true, {
-                    pattern: '[0-9]{9}',
-                    maxLength: 9,
-                    inputMode: 'numeric',
-                  })}
-                  {field('vinChassis', 'vinFull', 'text', true, {
-                    pattern: '[A-HJ-NPR-Z0-9]{17}',
-                    maxLength: 17,
-                    onChange: (e) => update('vinChassis', e.target.value.toUpperCase()),
-                  })}
-                  {field('firstRegistration', 'registration', 'date', true, {
-                    disabled: !registrationYear,
-                    max:
-                      registrationYear === today.slice(0, 4) ? today : `${registrationYear}-12-31`,
-                    min: `${registrationYear || '1900'}-01-01`,
-                  })}
-                  {field('mileage', 'mileage', 'number', true, { min: 0, max: 2000000, step: 1 })}
-                  {field('cubicCapacity', 'capacity', 'number', false, {
-                    min: 1,
-                    max: 20000,
-                    step: 1,
-                  })}
-                  {field('powerKw', 'power', 'number', false, { min: 1, max: 3000, step: 1 })}
-                  {field('mfkDate', 'inspection', 'date', true, { max: today, min: '1900-01-01' })}
-                  <label className="form-label">
-                    {t('canton')}
-                    <Select
-                      className="field"
-                      value={draft.canton}
-                      onChange={(e) => update('canton', e.target.value)}
-                    >
-                      {cantons.map((c) => (
-                        <option key={c}>{c}</option>
-                      ))}
-                    </Select>
-                  </label>
-                  <label className="form-label">
-                    {t('serviceHistory')}
-                    <Select
-                      className="field"
-                      value={draft.serviceHistory}
-                      onChange={(e) => update('serviceHistory', e.target.value)}
-                    >
-                      {(['FULL', 'PARTIAL', 'NONE'] as const).map((s) => (
-                        <option value={s} key={s}>
-                          {t(s)}
-                        </option>
-                      ))}
-                    </Select>
-                  </label>
-                  <details
-                    className="wizard-optional"
-                    onInvalidCapture={(event) => {
-                      event.currentTarget.open = true;
-                    }}
-                  >
-                    <summary>{t('optionalVehicleDetails')}</summary>
-                    <div className="form-grid mt-4">
-                      <SpecFields
-                        values={specs}
-                        onChange={(key, value) => setSpecs((old) => ({ ...old, [key]: value }))}
-                      />
-                      <EquipmentFields values={equipment} onChange={setEquipment} />
-                    </div>
-                  </details>
-                  {field('tireCondition', 'tireCondition', 'text', true, { maxLength: 200 })}
-                </div>
-                <div className="wizard-actions">
-                  <Button variant="ghost" type="button" onClick={() => go(0)}>
-                    <ArrowLeft size={15} />
-                    {t('back')}
-                  </Button>
-                  <Button type="submit">
-                    {t('next')}
-                    <ArrowRight size={15} />
-                  </Button>
-                </div>
-              </form>
-            )}
-            {step === 2 && (
-              <>
-                <label className="upload-zone compact">
-                  <ImagePlus size={34} />
-                  <strong>{t('choosePhotos')}</strong>
-                  <span>{t('imageLimit')}</span>
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png"
-                    multiple
-                    onChange={(e) => {
-                      addPhotos(e.target.files);
-                      e.target.value = '';
-                    }}
-                  />
-                </label>
-                <div className="upload-previews">
-                  {photos.map((p, i) => (
-                    <div key={p.preview}>
-                      <VehicleImage src={p.preview} alt={t('photo', { number: i + 1 })} />
-                      {i === 0 && <span className="cover-label">{t('cover')}</span>}
-                      <button
-                        className="remove-photo"
-                        aria-label={`${t('remove')} ${t('photo', { number: i + 1 })}`}
-                        onClick={() => {
-                          URL.revokeObjectURL(p.preview);
-                          setPhotos((old) => old.filter((_, index) => index !== i));
+                  <div className="wizard-actions">
+                    <Button variant="ghost" onClick={() => go(1)}>
+                      {t('manual')}
+                      <ArrowRight size={15} />
+                    </Button>
+                    <Button disabled={!document || busy || data?.demo} onClick={() => void parse()}>
+                      {busy ? t('loading') : t('parse')}
+                    </Button>
+                  </div>
+                </>
+              )}
+              {step === 1 && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    go(2);
+                  }}
+                >
+                  <div className="form-grid">
+                    <p className="notice md:col-span-2">{t('dataOriginWizard')}</p>
+                    <label className="form-label">
+                      {t('make')} *
+                      <Select
+                        className="field"
+                        required
+                        value={customMake ? '__other' : draft.make}
+                        onChange={(e) => {
+                          setCustomMake(e.target.value === '__other');
+                          setCustomModel(false);
+                          setDraft((old) => ({
+                            ...old,
+                            make: e.target.value === '__other' ? '' : e.target.value,
+                            model: '',
+                          }));
                         }}
                       >
-                        <Trash2 size={15} />
-                      </button>
-                      {i > 0 && (
-                        <button
-                          className="cover-button"
-                          onClick={() =>
-                            setPhotos((old) => [old[i], ...old.filter((_, index) => index !== i)])
-                          }
-                        >
-                          {t('makeCover')}
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <div className="wizard-actions">
-                  <Button variant="ghost" onClick={() => go(1)}>
-                    <ArrowLeft size={15} />
-                    {t('back')}
-                  </Button>
-                  <Button onClick={() => (photos.length ? go(3) : setMessage('photosRequired'))}>
-                    {t('next')}
-                    <ArrowRight size={15} />
-                  </Button>
-                </div>
-              </>
-            )}
-            {step === 3 && (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void submit();
-                }}
-              >
-                <div className="duration-card">
-                  <ClockIcon />
-                  <div>
-                    <b>{t('fairAuctions')}</b>
-                    <p>{t('softCloseText')}</p>
+                        <option value="">{t('selectVehicleOption')}</option>
+                        {Object.keys(vehicleCatalog)
+                          .sort()
+                          .map((make) => (
+                            <option key={make}>{make}</option>
+                          ))}
+                        <option value="__other">{t('manualVehicleOption')}</option>
+                      </Select>
+                    </label>
+                    {customMake && field('make', 'make', 'text', true, { maxLength: 80 })}
+                    <label className="form-label">
+                      {t('model')} *
+                      <Select
+                        className="field"
+                        required
+                        disabled={!draft.make}
+                        value={customModel ? '__other' : draft.model}
+                        onChange={(e) => {
+                          setCustomModel(e.target.value === '__other');
+                          update('model', e.target.value === '__other' ? '' : e.target.value);
+                        }}
+                      >
+                        <option value="">{t('selectVehicleOption')}</option>
+                        {(vehicleCatalog[draft.make] ?? []).map((model) => (
+                          <option key={model}>{model}</option>
+                        ))}
+                        <option value="__other">{t('manualVehicleOption')}</option>
+                      </Select>
+                    </label>
+                    {customModel && field('model', 'model', 'text', true, { maxLength: 100 })}
+                    <label className="form-label">
+                      {t('registrationYear')} *
+                      <Select
+                        className="field"
+                        required
+                        value={registrationYear}
+                        onChange={(e) => {
+                          setRegistrationYear(e.target.value);
+                          update('firstRegistration', '');
+                        }}
+                      >
+                        <option value="">{t('selectVehicleOption')}</option>
+                        {Array.from(
+                          { length: new Date().getFullYear() - 1899 },
+                          (_, i) => new Date().getFullYear() - i,
+                        ).map((year) => (
+                          <option key={year}>{year}</option>
+                        ))}
+                      </Select>
+                    </label>
+                    <p className="fine-print">{t('vehicleCatalogHint')}</p>
+                    {field('stammnummer', 'stammnummer', 'text', true, {
+                      pattern: '[0-9]{9}',
+                      maxLength: 9,
+                      inputMode: 'numeric',
+                    })}
+                    {field('vinChassis', 'vinFull', 'text', true, {
+                      pattern: '[A-HJ-NPR-Z0-9]{17}',
+                      maxLength: 17,
+                      onChange: (e) => update('vinChassis', e.target.value.toUpperCase()),
+                    })}
+                    {field('firstRegistration', 'registration', 'date', true, {
+                      disabled: !registrationYear,
+                      max:
+                        registrationYear === today.slice(0, 4)
+                          ? today
+                          : `${registrationYear}-12-31`,
+                      min: `${registrationYear || '1900'}-01-01`,
+                    })}
+                    {field('modelYear', 'modelYear', 'number', false, {
+                      min: 1900,
+                      max: new Date().getFullYear() + 1,
+                      step: 1,
+                    })}
+                    <p className="fine-print">{t('modelYearHint')}</p>
+                    {field('mileage', 'mileage', 'number', true, { min: 0, max: 2000000, step: 1 })}
+                    {field('cubicCapacity', 'capacity', 'number', false, {
+                      min: 1,
+                      max: 20000,
+                      step: 1,
+                    })}
+                    {field('powerKw', 'power', 'number', false, { min: 1, max: 3000, step: 1 })}
+                    <label className="form-label">
+                      {t('mfkStatus')}
+                      <Select
+                        value={draft.mfkStatus}
+                        onChange={(e) => {
+                          update('mfkStatus', e.target.value);
+                          if (e.target.value !== 'DATED') update('mfkDate', '');
+                        }}
+                      >
+                        <option value="UNKNOWN">{t('mfkUnknown')}</option>
+                        <option value="NEVER">{t('mfkNever')}</option>
+                        <option value="DATED">{t('mfkDated')}</option>
+                      </Select>
+                    </label>
+                    {draft.mfkStatus === 'DATED' &&
+                      field('mfkDate', 'inspection', 'date', true, {
+                        max: today,
+                        min: '1900-01-01',
+                      })}
+                    <label className="form-label">
+                      {t('canton')}
+                      <Select
+                        className="field"
+                        value={draft.canton}
+                        onChange={(e) => update('canton', e.target.value)}
+                      >
+                        {cantons.map((c) => (
+                          <option key={c}>{c}</option>
+                        ))}
+                      </Select>
+                    </label>
+                    {field('city', 'locationCity', 'text', false, {
+                      maxLength: 80,
+                      autoComplete: 'address-level2',
+                      'aria-describedby': 'location-privacy-hint',
+                    })}
+                    {field('postalCode', 'locationPostalCode', 'text', false, {
+                      maxLength: 4,
+                      inputMode: 'numeric',
+                      pattern: '[1-9][0-9]{3}',
+                      autoComplete: 'postal-code',
+                      'aria-describedby': 'location-privacy-hint',
+                    })}
+                    <p id="location-privacy-hint" className="fine-print">
+                      {t('locationPrivacyHint')}
+                    </p>
+                    <label className="form-label">
+                      {t('serviceHistory')}
+                      <Select
+                        className="field"
+                        value={draft.serviceHistory}
+                        onChange={(e) => update('serviceHistory', e.target.value)}
+                      >
+                        {(['FULL', 'PARTIAL', 'NONE'] as const).map((s) => (
+                          <option value={s} key={s}>
+                            {t(s)}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                    <details
+                      className="wizard-optional"
+                      onInvalidCapture={(event) => {
+                        event.currentTarget.open = true;
+                      }}
+                    >
+                      <summary>{t('optionalVehicleDetails')}</summary>
+                      <div className="form-grid mt-4">
+                        <SpecFields
+                          values={specs}
+                          onChange={(key, value) => setSpecs((old) => ({ ...old, [key]: value }))}
+                        />
+                        <EquipmentFields values={equipment} onChange={setEquipment} />
+                        <label className="form-label">
+                          {t('damageDescription')}
+                          <Textarea
+                            value={draft.damageDescription}
+                            maxLength={2000}
+                            required={['DAMAGED', 'REPAIRED'].includes(specs.accidentHistory)}
+                            onChange={(e) => update('damageDescription', e.target.value)}
+                          />
+                        </label>
+                        <p className="fine-print">{t('disclosureHint')}</p>
+                      </div>
+                    </details>
+                    {field('tireCondition', 'tireCondition', 'text', true, { maxLength: 200 })}
                   </div>
-                </div>
-                <div className="form-grid">
-                  {field('startPrice', 'startingPrice', 'number', true, {
-                    min: 1,
-                    max: 999999999,
-                    step: '0.01',
-                  })}
-                  {field('reservePrice', 'reservePrice', 'number', false, {
-                    min: Number(draft.startPrice) || 1,
-                    max: 999999999,
-                    step: '0.01',
-                  })}
-                </div>
-                <p className="fine-print">{t('reserveHint')}</p>
-                <label className="form-label mt-6">
-                  {t('description')}
-                  <Textarea
-                    className="field"
-                    rows={5}
-                    maxLength={5000}
-                    value={draft.description}
-                    onChange={(e) => update('description', e.target.value)}
-                  />
-                </label>
-                <label className="check-label mt-6">
-                  <input
-                    type="checkbox"
-                    required
-                    checked={consent}
-                    onChange={(e) => setConsent(e.target.checked)}
-                  />
-                  {t('listingConsent')}
-                </label>
-                {data?.demo ? (
-                  <p className="notice mt-4">{t('demoSubmit')}</p>
-                ) : status !== 'authenticated' ? (
-                  <p className="notice mt-4">
-                    <Link href="/login">{t('signInRequired')}</Link>
-                  </p>
-                ) : null}
-                <div className="wizard-actions">
-                  <Button type="button" variant="ghost" disabled={busy} onClick={() => go(2)}>
-                    <ArrowLeft size={15} />
-                    {t('back')}
-                  </Button>
-                  <Button
-                    type="submit"
-                    variant="green"
-                    disabled={!consent || busy || data?.demo || status !== 'authenticated'}
-                  >
-                    {busy ? t('loading') : t('submitListing')}
-                    <ArrowRight size={15} />
-                  </Button>
-                </div>
-              </form>
-            )}
+                  <div className="wizard-actions">
+                    <Button variant="ghost" type="button" onClick={() => go(0)}>
+                      <ArrowLeft size={15} />
+                      {t('back')}
+                    </Button>
+                    <Button type="submit">
+                      {t('next')}
+                      <ArrowRight size={15} />
+                    </Button>
+                  </div>
+                </form>
+              )}
+              {step === 2 && (
+                <>
+                  <label className="upload-zone compact">
+                    <ImagePlus size={34} />
+                    <strong>{t('choosePhotos')}</strong>
+                    <span>{t('imageLimit')}</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png"
+                      multiple
+                      onChange={(e) => {
+                        addPhotos(e.target.files);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                  <div className="upload-previews">
+                    {photos.map((p, i) => (
+                      <div key={p.preview}>
+                        <VehicleImage src={p.preview} alt={t('photo', { number: i + 1 })} />
+                        {i === 0 && <span className="cover-label">{t('cover')}</span>}
+                        <button
+                          className="remove-photo"
+                          aria-label={`${t('remove')} ${t('photo', { number: i + 1 })}`}
+                          onClick={() => {
+                            URL.revokeObjectURL(p.preview);
+                            setPhotos((old) => old.filter((_, index) => index !== i));
+                          }}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                        {i > 0 && (
+                          <button
+                            className="cover-button"
+                            onClick={() =>
+                              setPhotos((old) => [old[i], ...old.filter((_, index) => index !== i)])
+                            }
+                          >
+                            {t('makeCover')}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="wizard-actions">
+                    <Button variant="ghost" onClick={() => go(1)}>
+                      <ArrowLeft size={15} />
+                      {t('back')}
+                    </Button>
+                    <Button onClick={() => (photos.length ? go(3) : setMessage('photosRequired'))}>
+                      {t('next')}
+                      <ArrowRight size={15} />
+                    </Button>
+                  </div>
+                </>
+              )}
+              {step === 3 && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void submit();
+                  }}
+                >
+                  <label className="form-label">
+                    {t('draftListingType')}
+                    <Select
+                      value={listingType}
+                      onChange={(e) => setListingType(e.target.value as typeof listingType)}
+                    >
+                      <option value="AUCTION_7_DAYS">{t('draftAuction')}</option>
+                      <option value="FIXED_PRICE_OFFERS">{t('draftFixed')}</option>
+                    </Select>
+                  </label>
+                  {listingType === 'FIXED_PRICE_OFFERS' &&
+                    field('buyNowPrice', 'draftBuyNow', 'number', true, {
+                      min: 1,
+                      max: 999999999,
+                      step: '0.01',
+                    })}
+                  {listingType === 'AUCTION_7_DAYS' && (
+                    <div className="duration-card">
+                      <ClockIcon />
+                      <div>
+                        <b>{t('fairAuctions')}</b>
+                        <p>{t('softCloseText')}</p>
+                      </div>
+                    </div>
+                  )}
+                  <div className="form-grid">
+                    {field('startPrice', 'startingPrice', 'number', true, {
+                      min: 1,
+                      max: 999999999,
+                      step: '0.01',
+                    })}
+                    {field('reservePrice', 'reservePrice', 'number', false, {
+                      min: Number(draft.startPrice) || 1,
+                      max: 999999999,
+                      step: '0.01',
+                    })}
+                  </div>
+                  <p className="fine-print">{t('reserveHint')}</p>
+                  <label className="form-label mt-6">
+                    {t('description')}
+                    <Textarea
+                      className="field"
+                      rows={5}
+                      maxLength={5000}
+                      value={draft.description}
+                      onChange={(e) => update('description', e.target.value)}
+                    />
+                  </label>
+                  <label className="check-label mt-6">
+                    <input
+                      type="checkbox"
+                      required
+                      checked={consent}
+                      onChange={(e) => setConsent(e.target.checked)}
+                    />
+                    {t('listingConsent')}
+                  </label>
+                  {data?.demo ? (
+                    <p className="notice mt-4">{t('demoSubmit')}</p>
+                  ) : status !== 'authenticated' ? (
+                    <p className="notice mt-4">
+                      <Link href="/login">{t('signInRequired')}</Link>
+                    </p>
+                  ) : null}
+                  <div className="wizard-actions">
+                    <Button type="button" variant="ghost" disabled={busy} onClick={() => go(2)}>
+                      <ArrowLeft size={15} />
+                      {t('back')}
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="green"
+                      disabled={!consent || busy || data?.demo || status !== 'authenticated'}
+                    >
+                      {busy ? t('loading') : t('submitListing')}
+                      <ArrowRight size={15} />
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </fieldset>
           </section>
           <aside className="wizard-aside">
             <div className="panel">
               <ShieldCheck size={30} />
-              <h3>{t('verifiedData')}</h3>
+              <h3>{t('dataOriginTitle')}</h3>
               <p>{t('verifiedRequired')}</p>
               <hr />
               <LockKeyhole size={22} />
@@ -650,7 +927,7 @@ export function ListingWizard() {
                 </h3>
                 <p>
                   {draft.mileage ? `${draft.mileage} km · ` : ''}
-                  {draft.canton}
+                  {[draft.postalCode, draft.city, draft.canton].filter(Boolean).join(' ')}
                 </p>
                 {draft.startPrice && <b>{money(Number(draft.startPrice))}</b>}
               </div>

@@ -24,6 +24,10 @@ async function main() {
   const env: NodeJS.ProcessEnv = {
     ...ciEnvironment(),
     NODE_ENV: 'production',
+    LAUNCH_MODE: 'preview',
+    LOCAL_PROXY_ENGINE: 'false',
+    LOCAL_REFUND_POLICY_WORKER: 'false',
+    BACKGROUND_WORKERS_ENABLED: 'false',
     CI_BUILD: 'true',
     HOST: '127.0.0.1',
     PORT: String(serverPort),

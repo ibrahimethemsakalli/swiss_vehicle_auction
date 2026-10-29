@@ -84,6 +84,143 @@ jobs:
         run: pnpm test:prisma
         env:
           DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+      - name: Persistent notifications (isolated database, no providers)
+        run: node --import tsx scripts/notification-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+      - name: Messaging and appointments (isolated database, no providers)
+        run: node --import tsx scripts/messaging-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+      - name: Listing drafts (isolated database, no providers)
+        run: node --import tsx scripts/listing-draft-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: Vehicle disclosures (isolated database, no providers)
+        run: node --import tsx scripts/vehicle-disclosure-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: Listing revisions (isolated database, no providers)
+        run: node --import tsx scripts/listing-revision-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: Account favorites (isolated database, no providers)
+        run: node --import tsx scripts/favorite-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: Saved searches (isolated database, no providers)
+        run: node --import tsx scripts/saved-search-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: Vehicle location (isolated database, no providers)
+        run: node --import tsx scripts/vehicle-location-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: Trust and moderation (isolated database, no providers)
+        run: node --import tsx scripts/trust-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: Admin queues (isolated database, no providers)
+        run: node --import tsx scripts/admin-queue-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: Handover records (isolated database, no providers)
+        run: node --import tsx scripts/handover-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: SEO public data and sitemap (isolated database, no providers)
+        run: node --import tsx scripts/seo-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: Market search SQL and performance (isolated database, no providers)
+        run: node --import tsx scripts/market-search-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: Private listing statistics (isolated database, no providers)
+        run: node --import tsx scripts/listing-statistics-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: Vehicle data origin (isolated database, no providers)
+        run: node --import tsx scripts/vehicle-data-origin-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: Dealer profile and CSV drafts (isolated database, no providers)
+        run: node --import tsx scripts/dealer-inventory-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: Local proxy lifecycle (isolated database, no providers)
+        run: node --import tsx scripts/local-proxy-lifecycle-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: Local proxy sale (isolated database, no providers)
+        run: node --import tsx scripts/local-proxy-sale-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: Local proxy refund (isolated database, no providers)
+        run: node --import tsx scripts/local-proxy-refund-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: Local proxy ledger (isolated database, no providers)
+        run: node --import tsx scripts/local-proxy-ledger-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: Retention inventory (isolated database, read-only report, no providers)
+        run: node --import tsx scripts/retention-inventory-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: Message retention preview (isolated database, no deletion or providers)
+        run: node --import tsx scripts/retention-preview-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: Manual retention protection (isolated database, no providers)
+        run: node --import tsx scripts/retention-protection-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: Two-admin retention review (isolated database, no providers)
+        run: node --import tsx scripts/retention-review-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: Retention queue and inbox routing (isolated database, no providers)
+        run: node --import tsx scripts/retention-routing-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: Support requests (isolated database, no providers)
+        run: node --import tsx scripts/support-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: Support assignments and notifications (isolated database, no providers)
+        run: node --import tsx scripts/support-routing-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
+
+      - name: Support queue search (isolated database, no providers)
+        run: node --import tsx scripts/support-search-tests.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/autoveri_ci_test
 
   security:
     name: dependency-audit

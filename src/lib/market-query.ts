@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { normalizeCity } from './vehicle-location';
 import type { Prisma } from '../generated/prisma/client';
 import { specOptions, specNumbers, equipmentOptions } from './vehicle-specs';
 import { cantons, type Filters } from './market-types';
@@ -6,6 +7,11 @@ const bound = z.number().finite().min(0).max(Number.MAX_SAFE_INTEGER);
 const range = z.object({ min: bound.optional(), max: bound.optional() }).strict();
 export const filterInput = z
   .object({
+    city: z.string().max(80).transform(normalizeCity).optional(),
+    postalCode: z
+      .string()
+      .regex(/^\d{0,4}$/)
+      .optional(),
     query: z.string().max(180).default(''),
     canton: z
       .string()
@@ -56,6 +62,8 @@ export function marketWhere(f: Filters, now = new Date()): Prisma.VehicleWhereIn
   if (f.make) and.push({ make: f.make });
   if (f.model) and.push({ model: f.model });
   if (f.canton) and.push({ canton: f.canton });
+  if (f.city) and.push({ city: { equals: normalizeCity(f.city), mode: 'insensitive' } });
+  if (f.postalCode) and.push({ postalCode: { startsWith: f.postalCode } });
   if (f.privateOnly) and.push({ user: { role: 'PRIVATE_USER' } });
   if (f.equipment?.length) and.push({ equipment: { hasEvery: f.equipment } });
   // Token search supports make and model in the same query.
@@ -66,23 +74,11 @@ export function marketWhere(f: Filters, now = new Date()): Prisma.VehicleWhereIn
         { model: { contains: token, mode: 'insensitive' } },
       ],
     });
-  if (f.yearFrom || f.yearTo)
-    and.push({
-      OR: [
-        { modelYear: { gte: f.yearFrom, lte: f.yearTo } },
-        {
-          modelYear: null,
-          firstRegistration: {
-            gte: f.yearFrom ? new Date(`${f.yearFrom}-01-01T00:00:00Z`) : undefined,
-            lt: f.yearTo ? new Date(`${f.yearTo + 1}-01-01T00:00:00Z`) : undefined,
-          },
-        },
-      ],
-    });
+  if (f.yearFrom || f.yearTo) and.push({ modelYear: { gte: f.yearFrom, lte: f.yearTo } });
   if (f.mfk) {
     const since = new Date(now);
     since.setUTCFullYear(since.getUTCFullYear() - 1);
-    and.push({ isSample: false, mfkDate: { gt: since, lte: now } });
+    and.push({ isSample: false, mfkStatus: 'DATED', mfkDate: { gt: since, lte: now } });
   }
   for (const [key, value] of Object.entries(f.specs ?? {})) if (value) and.push({ [key]: value });
   for (const [key, value] of Object.entries(f.ranges ?? {}))

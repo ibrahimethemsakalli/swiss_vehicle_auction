@@ -1,18 +1,22 @@
+import { recordQuery } from '../../../lib/admin-queue-rules';
 import { requireUser, apiError } from '../../../lib/http';
 import { assertSameOrigin } from '../../../lib/mutation';
 import { db } from '../../../lib/db';
 import { openDispute, reviewDispute } from '../../../lib/disputes';
 export const dynamic = 'force-dynamic';
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const id = await requireUser();
+    const query = recordQuery.parse(Object.fromEntries(new URL(request.url).searchParams));
     const user = await db.user.findUniqueOrThrow({ where: { id } });
     if (user.suspendedAt) throw new Error('FORBIDDEN');
     const disputes = await db.dispute.findMany({
-      where:
-        user.role === 'ADMIN'
+      where: {
+        ...(query.id ? { id: query.id } : {}),
+        ...(user.role === 'ADMIN'
           ? {}
-          : { settlement: { OR: [{ vehicle: { userId: id } }, { bid: { userId: id } }] } },
+          : { settlement: { OR: [{ vehicle: { userId: id } }, { bid: { userId: id } }] } }),
+      },
       include: {
         settlement: {
           select: {
@@ -21,8 +25,9 @@ export async function GET() {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: query.id ? 1 : user.role === 'ADMIN' ? 20 : 100,
+      skip: query.id ? 0 : (query.page - 1) * (user.role === 'ADMIN' ? 20 : 100),
     });
     return Response.json(
       {

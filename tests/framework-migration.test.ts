@@ -10,8 +10,12 @@ import Vehicle from '../src/app/vehicles/[id]/page';
 const require = createRequire(import.meta.url);
 
 test('framework migration resolves asynchronous vehicle and legal query props', async () => {
-  const vehicle = await Vehicle({ params: Promise.resolve({ id: 'migration-fixture' }) });
-  assert.equal(vehicle.props.id, 'migration-fixture');
+  const id = demoVehicles()[0].id;
+  const vehicle = await Vehicle({
+    params: Promise.resolve({ id }),
+    searchParams: Promise.resolve({ lang: 'de' }),
+  });
+  assert.equal(vehicle.props.children[1].props.id, id);
   for (const [Page, kind] of [
     [Privacy, 'PRIVACY'],
     [Terms, 'TERMS'],

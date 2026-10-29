@@ -50,7 +50,7 @@ Relevant provider references: [Stripe manual capture](https://docs.stripe.com/pa
 
 | Route                  | Features                                                                                                                                                                                                            |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/`                    | Search with linked make/model, year/price/mileage ranges, technical and equipment filters, 26 cantons, MFK, server pagination, sorting and local favorites                               |
+| `/`                    | Search with linked make/model, year/price/mileage ranges, technical and equipment filters, 26 cantons, MFK, server pagination, sorting and account/guest favorites                               |
 | `/vehicles/[id]`       | Photo gallery/lightbox, masked VIN, vehicle data, recent-inspection badge, countdown, bid history, live Socket.IO updates, reconnect resubscription, HTTP reconciliation every 15 seconds, binding-bid confirmation |
 | `/sell`                | Four-step wizard: document capture/OCR, field review, photo selection/cover/reordering/removal, seven-day auction pricing and review submission                                                                     |
 | `/dashboard`           | Buyer bids/wins, seller vehicles/incoming auction bids, authorization/release statuses                                                                                                                              |
@@ -303,6 +303,122 @@ Zod 4.6.7 yükseltmesi, sözlük/UUID/e-posta uyumu ve ortak parola/tarih şemal
 
 Prisma CLI/client 6.19.3, effect 3.21.0 ve yalnızca Prisma config için deepmerge-ts 8.0.2 sabitlemesi uygulandı. Güncel audit 0 bildirim; önceki PM-07A/B sayıları tarihsel kayıttır. `pnpm test:prisma` generate/config, migration/drift ve temel DB işlemlerini yeni geçici yerel veritabanında doğrular. Hedefli test, typecheck ve frozen install geçti; gerçek API ve tamamlanan iş akışları tekrar çalıştırılmadı. [PRISMA_SECURITY.md](PRISMA_SECURITY.md) geçici override, şema eşleştirmesi ve Prisma 6'nın 19 Kasım 2026 destek sonunu açıklar. Uygulamanın çalışan süreci yeni istemciyi kullanmak için kontrollü yeniden başlatılmalıdır.
 
+## PM-09 — Mesajlaşma ve randevu
+
+İlan detayından özel konuşma, iki taraflı randevu, mesaj raporlama ve engelleme hazır. Dört dilde `/messages` ve admin için `/admin/messages` ekranları bulunur. `pnpm test:messaging` sadece yeni özellikleri test eder. Yetki kuralları ve sınırlar: [MESSAGING.md](MESSAGING.md).
+
+## PM-08 — Bildirim kutusu
+
+Giriş sonrası zil simgesi `/notifications` ekranını açar. Kalıcı kayıt, okunma durumu, okunmamış filtresi, sayfalama ve DE/FR/IT/EN hazır. `pnpm test:notifications` yalnızca yeni bildirim kontrollerini çalıştırır. Olay kapsamı, migration ve sınırlar: [NOTIFICATIONS.md](NOTIFICATIONS.md). Gerçek sağlayıcı çağrısı yoktur.
+
 ## Prisma 7 (güncel durum)
 
 Prisma CLI/client/adapter-pg 7.10.1 ve pg 8.23.1 kullanılıyor. İstemci `pnpm db:generate` ile `src/generated/prisma` altında üretilir; `prisma.config.ts` CLI bağlantısını yönetir. Geçici deepmerge override kaldırıldı, audit 0 bildirim. Hedefli migration/bağlantı/veri testleri ve typecheck geçti; kullanıcı akışları tekrarlanmadı. Havuz ayarları, kurulum ve kapsam: [PRISMA7_MIGRATION.md](PRISMA7_MIGRATION.md). Mevcut süreç yeni sürüm için yeniden başlatılmalı; production build yeniden üretilmelidir.
+
+## PM-10 — İlan taslakları
+
+`/drafts` ekranında eksik bilgili ilanı manuel kaydetme, kaldığı adımdan devam, özel önizleme ve onay bekleyen ilanı geri çekip aynı kayıtla yeniden gönderme hazır. DE/FR/IT/EN desteklenir. `pnpm test:drafts` yalnızca yeni özellikleri test eder. Yetki, fotoğraf, kota ve sürüm kuralları: [LISTING_DRAFTS.md](LISTING_DRAFTS.md). Gerçek API kullanılmadı.
+
+## PM-11 — Araç beyanları
+
+MFK durumu/tarihi ayrımı, model yılı, hasar açıklaması ve EV/plug-in pil sağlığı dört dilde hazır. Bilinmeyen değerler olumlu filtre sonucu sayılmaz. `pnpm test:disclosures` sadece yeni alanları doğrular. Migration ve sınırlar: [VEHICLE_DISCLOSURES.md](VEHICLE_DISCLOSURES.md).
+
+## PM-12 — Red ve yeniden inceleme
+
+Admin red gerekçesi/kontrol listesi, satıcı düzeltmesi ve sürüm geçmişi dört dilde hazır. Süresi dolan ilan yalnızca teklif/rezervasyon/satış kaydı yoksa yeniden admin incelemesine gönderilebilir. `pnpm test:revisions` yalnızca yeni özellikleri test eder. Sınırlar ve kanıt: [LISTING_REVISIONS.md](LISTING_REVISIONS.md).
+
+## PM-13 — Hesap favorileri
+
+Giriş yapan kullanıcıların favorileri veritabanında, misafirlerin listesi tarayıcıda saklanır. Açık aktarım, tekrarları birleştirme, 200 kayıt kotası ve dört dil desteği hazır. Kapalı ilanların durum gösterimi korunur. Hedefli komut: `pnpm test:favorites`. Test kanıtı ve sınırlar: [ACCOUNT_FAVORITES.md](ACCOUNT_FAVORITES.md).
+
+## PM-14 — Kayıtlı aramalar
+
+Filtre/sıralama/sayfa/favori görünümü URL üzerinden paylaşılır ve geri/ileri gezinmede korunur. Hesap başına 20 isimli arama ve isteğe bağlı uygulama içi eşleşme bildirimi dört dilde hazırdır. `pnpm test:searches` yalnızca yeni alanları test eder. Bildirim tarama kuralları, test kanıtı ve sınırlar: [SAVED_SEARCHES.md](SAVED_SEARCHES.md).
+
+## PM-15 — Araç karşılaştırma
+
+İlan kartlarından veya detaydan en fazla üç araç seçip `/compare` sayfasında yan yana inceleyebilirsiniz. Seçim tarayıcıda korunur; dört dil, açık bilinmeyen değerler ve mobil yatay tablo desteklenir. `pnpm test:comparison` yalnızca dört yeni testi çalıştırır. Veri yenileme, kapsam ve test kanıtı: [VEHICLE_COMPARISON.md](VEHICLE_COMPARISON.md).
+
+## PM-16 — Yerleşim bilgileri ve konum filtreleri
+
+İsteğe bağlı şehir/posta kodu; taslak, önizleme, ilan detayı ve karşılaştırmada desteklenir. Şehir tam adla (harf büyüklüğünden bağımsız), posta kodu başlangıçla filtrelenir. Tam adres/koordinat toplanmaz; harita, mesafe ve yarıçap ayrı hazırlık kapsamındadır. `pnpm test:location` yalnızca yeni konum alanlarını test eder. Sınırlar ve kanıt: [VEHICLE_LOCATION.md](VEHICLE_LOCATION.md).
+
+## PM-17 — Şikâyetler ve değerlendirmeler
+
+İlan şikâyeti, tamamlanmış satışa bağlı puan/yorum, cevap ve itiraz, admin karar kaydı dört dilde hazır. Kullanıcı ekranı /trust, moderasyon ekranı /admin/trust. Hedefli test: pnpm test:trust. Kapsam, gizlilik ve yaptırım sınırları: [TRUST_AND_MODERATION.md](TRUST_AND_MODERATION.md).
+
+## PM-18 — Admin kuyrukları
+
+/admin ekranında altı kuyruk için sayfalama, arama/durum/tarih filtreleri, kayıt yaşı, dosyayı üstlenme/bırakma ve operatör geçmişi dört dilde hazır. Hedefli test: pnpm test:admin-queue. Davranış, veri değişikliği ve kanıtlar: [ADMIN_QUEUES.md](ADMIN_QUEUES.md).
+
+## PM-19 — Teslim kaydı
+
+Satış kartından ortak teslim kontrol listesi, sürümlü alıcı/satıcı teyidi, geçmiş ve yazdırılabilir özel özet açılır. Tahsilat kuralları değişmez; resmî fatura/sözleşme değildir. Dört dil desteklenir. Hedefli test: pnpm test:handover. Sınırlar ve kanıt: [HANDOVER.md](HANDOVER.md).
+
+PM-20 SEO ve paylaşım hazırlığı: [SEO_READINESS.md](SEO_READINESS.md). Yerel test: pnpm test:seo. Canlı indeksleme varsayılan olarak kapalıdır.
+
+PM-21 SQL arama/sayfalama ve performans ölçümü: [MARKET_SEARCH.md](MARKET_SEARCH.md). Yeni testler: pnpm test:market-search.
+
+PM-22 özel satıcı istatistikleri: [LISTING_STATISTICS.md](LISTING_STATISTICS.md). Yeni testler: pnpm test:listing-statistics. Production görüntülenme toplama kapalıdır.
+
+PM-23 kaynak/tarih ve manuel düzeltme: [VEHICLE_DATA_ORIGIN.md](VEHICLE_DATA_ORIGIN.md). Yeni testler: pnpm test:vehicle-data-origin. Lisanslı değerleme ve araç kataloğu bağlantısı yoktur.
+
+PM-24 bayi profili ve CSV stok taslakları: [DEALER_INVENTORY.md](DEALER_INVENTORY.md). Yeni testler: pnpm test:dealer-inventory. Gerçek sicil doğrulaması ve abonelik bağlı değildir.
+
+PM-25A randevu hatırlatmaları ve özel takvim dosyası: [APPOINTMENT_REMINDERS.md](APPOINTMENT_REMINDERS.md). Yeni testler: pnpm test:appointments. Harici takvim eşitleme ve push teslimi yoktur.
+
+PM-25B PWA kurulumu ve veri saklamayan çevrimdışı ekran: [PWA_READINESS.md](PWA_READINESS.md). Yeni testler: pnpm test:pwa. HTTPS/localhost gerekir; gerçek cihaz kurulumu ve push teslimi ayrı kapsamdır.
+
+PM-25C otomatik teklif kural önerisi ve yalnızca development ortamında /bid-simulator: [PROXY_BIDDING_PROPOSAL.md](PROXY_BIDDING_PROPOSAL.md). Yeni testler: pnpm test:proxy-simulation. Gerçek teklif veya rezervasyon oluşturmaz.
+
+PM-25D izole yerel otomatik teklif motoru: [LOCAL_PROXY_ENGINE.md](LOCAL_PROXY_ENGINE.md). Yeni testler: pnpm test:local-proxy. Gerçek ilan/ödeme akışına bağlı değildir. PM-25E yerel hesap/HTTP ve dört dilde test ekranı: [LOCAL_PROXY_WORKSPACE.md](LOCAL_PROXY_WORKSPACE.md), `/local-proxy`; hedefli test: `pnpm test:local-proxy-workspace`.
+
+PM-25F yerel kapanış, kazanan, iptal ve rezervasyon yaşam döngüsü tamamlandı: [LOCAL_PROXY_LIFECYCLE.md](LOCAL_PROXY_LIFECYCLE.md). Hedefli test: `pnpm test:local-proxy-lifecycle`. Önceki aşamanın kapanışın bağlı olmadığına ilişkin notları bu güncellemeyle aşılmıştır.
+
+PM-25G güncellemesi: yerel kazanan rezervasyonu yenileme, satış teyidi ve tek sahte platform hizmet bedeli tahsilatı hazır. [LOCAL_PROXY_SALE.md](LOCAL_PROXY_SALE.md); hedefli test: `pnpm test:local-proxy-sale`. Önceki aşamanın yenileme/tahsilat olmadığına ilişkin notları bu güncellemeyle aşılmıştır.
+
+PM-25H: gerekçeli yerel iade talebi, admin onay/ret kararı ve tek sahte iade hazır. [LOCAL_PROXY_REFUND.md](LOCAL_PROXY_REFUND.md); hedefli test: `pnpm test:local-proxy-refund`. Önceki aşamanın iade bulunmadığına ilişkin notlarını bu güncelleme tamamlar.
+
+PM-25I: salt okunur yerel admin ödeme defteri, CHF tahsilat/iade/net toplamları ve eksik/mükerrer kayıt denetimi dört dilde hazır. [LOCAL_PROXY_LEDGER.md](LOCAL_PROXY_LEDGER.md); hedefli test: pnpm test:local-proxy-ledger.
+
+PM-25J: UTC tarih filtreleri, filtreli toplamlar ve dört dilde güvenli CSV indirme hazır. [LOCAL_PROXY_LEDGER_EXPORT.md](LOCAL_PROXY_LEDGER_EXPORT.md); hedefli test: pnpm test:local-proxy-ledger-export.
+
+PM-26: [canlıya hazırlık ve tek karar matrisi](GO_LIVE_MATRIX.md). İlk canlı sürüm kararı kart + manuel teklif; otomatik teklif ve TWINT kapalı. Yerel tamamlanmış özellikler gerçek sağlayıcı kabulü sayılmaz; açık bilgi, karar ve uygulama ihtiyaçları bu listede izlenir.
+
+PM-26B: [dört dilde yayımlanmamış politika taslakları ve silme/koruma planı](RETENTION_PROTECTION_PLAN.md) hazır. İşlem/uyuşmazlık süreleri belirsiz; hukuki yayın, otomatik silme veya gerçek API işlemi yapılmadı.
+
+PM-26C: [salt okunur saklama envanteri](RETENTION_INVENTORY.md), /admin/retention. Silme yok; eksik kurallar nedeniyle aday değerlendirmesi kapalı, korunan/belirsiz sayımları hazır. Hedefli test: pnpm test:retention-inventory.
+
+PM-26D: onaylı mesaj etkinliği ve koruma kurallarıyla [salt okunur aday önizlemesi](RETENTION_MESSAGE_PREVIEW.md).
+
+PM-26E: [gerekçeli manuel koruma ve inceleme kuyruğu](RETENTION_MANUAL_PROTECTION.md); silme açılmaz.
+
+PM-26F: [onaylanan yeniden inceleme kararları](RETENTION_REVIEW_DECISIONS.md). PM-26G: [uygulama planı](RETENTION_REVIEW_IMPLEMENTATION_PLAN.md) hazır; yerel uygulama tamamlandı (RETENTION_REVIEW.md).
+
+PM-26G: [yerel iki adminli koruma incelemesi ve kaldırma](RETENTION_REVIEW.md); `pnpm test:retention-review`. Mesajlar silinmez.
+
+PM-26H: [yerel inceleme kuyruğu ve bildirimler](RETENTION_ROUTING.md) tamamlandı. İki admin kuralı korunur; silme kapalıdır. Sonraki öneri PM-27: dört dilde uygulama içi destek talebi ve yanıt takibi; gerçek API olmadan.
+
+PM-27 tamamlandı: dört dilde [destek talepleri, admin yanıtı ve durum geçmişi](SUPPORT_REQUESTS.md). Saklama süresi belirsiz, silme ve gerçek API yok. Sonraki öneri PM-28: sorumlu admin, okunmamış yanıt ve uygulama içi bildirim bağlantıları.
+
+PM-28 tamamlandı: [destek ataması, kullanıcıya özel okunmamış yanıtlar ve dört dilde bildirimler](SUPPORT_ROUTING.md). Belirsiz süreler korunur; silme/gerçek API yok. Sonraki öneri PM-29: atanmış/atanmamış/okunmamış filtreleri ve destek araması.
+
+PM-29 tamamlandı: [destek kuyruğu arama ve filtreleri](SUPPORT_SEARCH.md). Gerçek API veya yeni süre yok. Sonraki öneri PM-30: filtreleri URL ile koruma ve geri/ileri gezinme.
+
+PM-30 tamamlandı: [URL ile destek filtreleri ve gezinme](SUPPORT_NAVIGATION.md). Yeni süre, silme veya gerçek API yok. Sonraki öneri PM-31: gönderilmemiş destek yanıtı/atama gerekçesi için ayrılma uyarısı.
+
+## PM-31 — Destek taslağı koruması
+
+Dört dilde ayrılma uyarısı, bağlantı/çıkış ve destek gezinmesi koruması eklendi. Yerel hedefli kontroller ve tarayıcı sınırları: [SUPPORT_DRAFT_GUARD.md](SUPPORT_DRAFT_GUARD.md). Sonraki öneri PM-32: sürüm çakışmasında taslağı koruyarak güncel talebi inceleme.
+
+## PM-32 — Destek çakışması inceleme
+
+Dört dilde taslağı koruyarak güncel talebi yükleme ve açık inceleme onayı eklendi. Kapsam ve hedefli test sonuçları: [SUPPORT_CONFLICT_REVIEW.md](SUPPORT_CONFLICT_REVIEW.md). Sonraki öneri PM-33: uzun konuşmalarda taslağı koruyarak geçmiş inceleme.
+
+## PM-33 — Taslağı koruyan destek geçmişi
+
+Dört dilde ayrı geçmiş inceleme penceresi, 30 mesajlık sayfalama ve taslağa dönüş eklendi. Kapsam ve hedefli test sonuçları: [SUPPORT_HISTORY.md](SUPPORT_HISTORY.md). Sonraki öneri PM-34: konuşma içi arama ve tarih filtresi.
+
+## PM-34 — Destek mesajlarında arama
+
+Dört dilde konuşma içi metin/tarih filtresi, bağlama geçiş ve sonuçlara dönüş eklendi. Kapsam ve testler: [SUPPORT_HISTORY_SEARCH.md](SUPPORT_HISTORY_SEARCH.md). Sonraki öneri PM-35: yetki kontrollü doğrudan mesaj bağlantısı.

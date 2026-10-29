@@ -1,4 +1,4 @@
-import { AdminDashboard } from '../../components/dashboards';
+import { AdminWorkspace } from '../../components/admin-workspace';
 export default function Page() {
-  return <AdminDashboard />;
+  return <AdminWorkspace />;
 }

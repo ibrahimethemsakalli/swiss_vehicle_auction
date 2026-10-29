@@ -1,17 +1,22 @@
+import { recordQuery } from '../../../lib/admin-queue-rules';
 import { z } from 'zod';
 import { db } from '../../../lib/db';
 import { requireUser, apiError } from '../../../lib/http';
 import { assertSameOrigin } from '../../../lib/mutation';
 import { actOnSettlement } from '../../../lib/settlement';
 export const dynamic = 'force-dynamic';
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const id = await requireUser();
+    const query = recordQuery.parse(Object.fromEntries(new URL(request.url).searchParams));
     const user = await db.user.findUniqueOrThrow({ where: { id } });
     if (user.suspendedAt) throw new Error('FORBIDDEN');
     const admin = user.role === 'ADMIN';
     const rows = await db.settlement.findMany({
-      where: admin ? {} : { OR: [{ vehicle: { userId: id } }, { bid: { userId: id } }] },
+      where: {
+        ...(query.id ? { id: query.id } : {}),
+        ...(admin ? {} : { OR: [{ vehicle: { userId: id } }, { bid: { userId: id } }] }),
+      },
       include: {
         _count: {
           select: { disputes: { where: { status: { in: ['OPEN', 'ACTION_REQUIRED'] } } } },
@@ -26,8 +31,9 @@ export async function GET() {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: query.id ? 1 : admin ? 20 : 100,
+      skip: query.id ? 0 : (query.page - 1) * (admin ? 20 : 100),
     });
     return Response.json(
       {
@@ -49,9 +55,12 @@ export async function GET() {
         ...(admin
           ? {
               audits: await db.outboxEvent.findMany({
-                where: { kind: 'settlement.action' },
+                where: {
+                  kind: 'settlement.action',
+                  ...(query.id ? { payload: { path: ['settlementId'], equals: query.id } } : {}),
+                },
                 select: { id: true, payload: true, createdAt: true },
-                orderBy: { createdAt: 'desc' },
+                orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
                 take: 100,
               }),
             }

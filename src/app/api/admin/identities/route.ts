@@ -1,21 +1,29 @@
+import { recordQuery } from '../../../../lib/admin-queue-rules';
 import { z } from 'zod';
 import { db } from '../../../../lib/db';
 import { requireUser, apiError } from '../../../../lib/http';
 import { assertSameOrigin } from '../../../../lib/mutation';
 import { approveIdentity } from '../../../../lib/identity';
 export const dynamic = 'force-dynamic';
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const id = await requireUser();
+    const query = recordQuery.parse(Object.fromEntries(new URL(request.url).searchParams));
     const user = await db.user.findUniqueOrThrow({ where: { id } });
     if (user.role !== 'ADMIN' || user.suspendedAt) throw new Error('FORBIDDEN');
     return Response.json(
       {
         users: await db.user.findMany({
-          where: { phoneVerifiedAt: { not: null }, isIdentityVerified: false, suspendedAt: null },
+          where: {
+            ...(query.id ? { id: query.id } : {}),
+            phoneVerifiedAt: { not: null },
+            isIdentityVerified: false,
+            suspendedAt: null,
+          },
           select: { id: true, email: true, role: true, companyName: true, handelsregisterNr: true },
-          take: 100,
-          orderBy: { createdAt: 'asc' },
+          take: query.id ? 1 : 20,
+          skip: query.id ? 0 : (query.page - 1) * 20,
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         }),
       },
       { headers: { 'Cache-Control': 'no-store' } },
